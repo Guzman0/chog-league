@@ -4,9 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { AMOUNTS, DURATIONS_MIN, MARKETS, MULTIPLIERS, formatPrice, targetPrices, type Direction, type Market, type Trade } from "@/lib/game";
 import { FORMATS, other, roundPayout, score, type Duel, type Round, type Side } from "@/lib/duels";
 import type { ChogData } from "@/lib/chog";
+import { play } from "@/lib/sound";
 import ChogAvatar, { type Reaction } from "./ChogAvatar";
+import PriceChart, { type ChartLine } from "./PriceChart";
 import { fetchChog } from "./MyChogs";
 import { duelAction } from "./useDuels";
+import { usePriceStream, type Tick } from "./usePriceStream";
+import { Field, Pill } from "./ui";
 
 type ArenaSide = { balance: number; open: number; trades: number };
 type View = {
@@ -30,17 +34,17 @@ const clock = (ms: number) => {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}` : `${m}:${String(r).padStart(2, "0")}`;
 };
-const arrow = (d?: Direction) => (d === "up" ? "▲ HIGHER" : d === "down" ? "▼ LOWER" : "–");
+const arrow = (d?: Direction) => (d === "up" ? "▲ Higher" : d === "down" ? "▼ Lower" : "no call");
 
 export default function DuelScreen({ duelId, maxMultiplier, onClose }: { duelId: string; maxMultiplier: number; onClose: () => void }) {
   const [v, setV] = useState<View | null>(null);
   const [chogs, setChogs] = useState<Partial<Record<Side, ChogData>>>({});
   const [err, setErr] = useState<string | null>(null);
   const [mult, setMult] = useState(1);
-  const [live, setLive] = useState<number | null>(null);
   const [reactions, setReactions] = useState<Partial<Record<Side, Reaction>>>({});
   const seenRounds = useRef<Set<number> | null>(null);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const announced = useRef(false);
   const now = useNow();
 
   // Poll the duel.
@@ -62,6 +66,7 @@ export default function DuelScreen({ duelId, maxMultiplier, onClose }: { duelId:
   const d = v?.duel;
   const me: Side = d?.side ?? "challenger";
   const them = other(me);
+  const stream = usePriceStream(d?.market ?? "BTC");
 
   // Load both Chogs' pictures.
   useEffect(() => {
@@ -73,28 +78,18 @@ export default function DuelScreen({ duelId, maxMultiplier, onClose }: { duelId:
     });
   }, [d?.challengerToken, d?.opponentToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Live price for the duel market while a round is running.
-  const round: Round | undefined = d?.rounds[d.rounds.length - 1];
-  const showLive = !!d && d.status === "active" && FORMATS[d.format].kind === "rounds";
-  useEffect(() => {
-    if (!showLive || !d) return;
-    let alive = true;
-    const load = () => fetch(`/api/price?m=${d.market}`).then((r) => r.json()).then((p) => alive && p.price && setLive(p.price)).catch(() => {});
-    load();
-    const id = setInterval(load, 2000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, [showLive, d?.market]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Both Chogs react when a round is decided (not for rounds already over when you opened the duel).
   useEffect(() => {
     if (!d) return;
     const decided = d.rounds.filter((r) => r.winner !== undefined).map((r) => r.n);
     if (seenRounds.current === null) {
       seenRounds.current = new Set(decided);
+      if (d.status === "done") announced.current = true;
       return;
+    }
+    if (d.status === "done" && !announced.current) {
+      announced.current = true;
+      play(d.result?.winner === me ? "victory" : d.result?.winner === "draw" ? "place" : "lose");
     }
     const fresh = d.rounds.find((r) => r.winner !== undefined && !seenRounds.current!.has(r.n));
     if (!fresh) return;
@@ -103,24 +98,26 @@ export default function DuelScreen({ duelId, maxMultiplier, onClose }: { duelId:
       const res = fresh.results?.[s];
       if (fresh.winner === "tie" || !res) return null;
       const won = fresh.winner === s;
-      return { kind: won ? "win" : "lose", text: won ? `Round ${fresh.n}! ${res.pnl >= 0 ? "+" : ""}$${res.pnl}` : res.missed ? "Too slow…" : `rekt ${res.pnl}`, key: `${d.id}-${fresh.n}-${s}` };
+      return { kind: won ? "win" : "lose", text: won ? `Round ${fresh.n}! ${res.pnl >= 0 ? "+" : ""}$${res.pnl}` : res.missed ? "Too slow…" : "rekt", key: `${d.id}-${fresh.n}-${s}` };
     };
+    if (d.status !== "done") play(fresh.winner === me ? "win" : fresh.winner === "tie" ? "place" : "lose");
     setReactions({ challenger: mk("challenger"), opponent: mk("opponent") });
     if (clearTimer.current) clearTimeout(clearTimer.current);
     clearTimer.current = setTimeout(() => setReactions({}), 3500);
-  }, [d]);
+  }, [d, me]);
 
   async function act(body: Record<string, unknown>) {
     setErr(null);
     try {
       setV(await duelAction(duelId, body));
+      if (body.action === "pick" || body.action === "trade") play("place");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong");
     }
   }
 
   if (!d) {
-    return <section className="rounded-2xl border-2 border-[var(--purple)] bg-[var(--panel)] p-6 text-center text-sm text-[var(--muted)]">Loading duel…</section>;
+    return <section className="panel text-center text-sm text-[var(--muted)]">Loading the duel…</section>;
   }
 
   const f = FORMATS[d.format];
@@ -130,79 +127,58 @@ export default function DuelScreen({ duelId, maxMultiplier, onClose }: { duelId:
   const draw = done && d.result?.winner === "draw";
   const nameOf = (s: Side) => chogs[s]?.name ?? `Token ${s === "challenger" ? d.challengerToken : d.opponentToken}`;
   const isBotSide = (s: Side) => d.isBot && s === "opponent";
+  const round: Round | undefined = d.rounds[d.rounds.length - 1];
 
   return (
-    <section className="rounded-2xl border-2 border-[var(--purple)] bg-[var(--panel)] p-5">
-      <div className="mb-4 flex items-baseline justify-between">
-        <h3 className="text-lg font-bold">⚔️ {f.label}{f.kind === "rounds" ? ` · ${d.market}` : ""}</h3>
-        <p className="text-sm text-[var(--muted)]">Pot ${d.stake * 2} · {d.mode === "league" ? "League" : "Practice"}</p>
+    <section className="panel">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-2xl">⚔️ {f.label}{f.kind === "rounds" ? ` on ${d.market}` : ""}</h3>
+        <p className="text-sm font-extrabold text-[var(--muted)]">Pot ${d.stake * 2}, {d.mode === "league" ? "league duel" : "practice duel"}</p>
       </div>
 
       {/* Face-off */}
       <div className="mb-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         {[me, them].map((s, i) => (
           <div key={s} className={`text-center ${i === 1 ? "order-3" : ""}`}>
-            <div className="mx-auto w-full max-w-[160px]">
-              <ChogAvatar
-                image={chogs[s]?.image ?? null}
-                name={nameOf(s)}
-                reaction={reactions[s] ?? null}
-                crowned={done && d.result?.winner === s}
-              />
+            <div className="mx-auto w-full max-w-[150px]">
+              <ChogAvatar image={chogs[s]?.image ?? null} name={nameOf(s)} reaction={reactions[s] ?? null} crowned={done && d.result?.winner === s} size="md" />
             </div>
-            <p className="mt-2 truncate text-sm font-semibold">{s === me ? "You" : isBotSide(s) ? "🤖 Bot" : "Them"} · {nameOf(s)}</p>
-            {f.kind === "arena" && v?.arena && <p className="text-lg font-bold tabular-nums">${v.arena[s].balance.toLocaleString()}</p>}
+            <p className="mt-2 truncate text-sm font-extrabold">{s === me ? "You" : isBotSide(s) ? "🤖 Bot" : "Them"}</p>
+            <p className="truncate text-xs text-[var(--muted)]">{nameOf(s)}</p>
+            {f.kind === "arena" && v?.arena && <p className="display num text-2xl text-[var(--banana)]">${v.arena[s].balance.toLocaleString()}</p>}
           </div>
         ))}
         <div className="order-2 text-center">
-          {f.kind === "rounds" ? (
-            <p className="text-3xl font-extrabold tabular-nums">{sc[me]} – {sc[them]}</p>
-          ) : (
-            <p className="text-xl font-extrabold">VS</p>
-          )}
-          {f.kind === "rounds" && <p className="text-xs text-[var(--muted)]">first to {f.toWin}</p>}
+          {f.kind === "rounds" ? <p className="display num text-5xl">{sc[me]}–{sc[them]}</p> : <p className="display text-4xl">vs</p>}
+          {f.kind === "rounds" && <p className="text-xs font-extrabold text-[var(--muted)]">first to {f.toWin}</p>}
         </div>
       </div>
 
-      {/* Finished */}
       {done && (
-        <div className={`mb-4 rounded-xl p-4 text-center ${iWon ? "bg-[var(--green)] text-black" : draw ? "bg-[var(--line)]" : "bg-[var(--red)] text-black"}`}>
-          <p className="text-2xl font-extrabold">{iWon ? `🏆 You won $${d.stake * 2}!` : draw ? "🤝 Draw. Stakes returned." : `💀 You lost $${d.stake}`}</p>
-          {d.result?.reason && <p className="text-sm">{d.result.reason}</p>}
-          <button onClick={onClose} className="mt-3 rounded-lg bg-black/80 px-4 py-2 font-semibold text-white">Back</button>
+        <div className={`mb-4 rounded-2xl border-[3px] border-[var(--ink)] p-5 text-center text-[var(--ink)] ${iWon ? "bg-[var(--green)]" : draw ? "bg-[var(--muted)]" : "bg-[var(--red)]"}`}>
+          <p className="display text-4xl">{iWon ? `You won $${d.stake * 2}!` : draw ? "Draw. Stakes returned." : `You lost $${d.stake}`}</p>
+          {d.result?.reason && <p className="text-sm font-extrabold">{d.result.reason}</p>}
+          <button type="button" onClick={onClose} className="btn btn-ghost mt-3 px-5 py-2">Back to the lobby</button>
         </div>
       )}
 
-      {/* Round in progress */}
       {!done && f.kind === "rounds" && round && (
-        <RoundPanel
-          round={round}
-          me={me}
-          them={them}
-          now={now}
-          live={live}
-          maxMultiplier={maxMultiplier}
-          mult={mult}
-          setMult={setMult}
-          onPick={(direction) => act({ action: "pick", direction, multiplier: mult })}
-        />
+        <RoundPanel round={round} me={me} them={them} now={now} ticks={stream.ticks} live={stream.price} maxMultiplier={maxMultiplier} mult={mult} setMult={setMult} onPick={(direction) => act({ action: "pick", direction, multiplier: mult })} />
       )}
 
-      {/* Arena in progress */}
       {!done && f.kind === "arena" && v?.arena && (
         <ArenaPanel endsAt={d.endsAt!} now={now} maxMultiplier={maxMultiplier} trades={v.arena.trades} me={me} onTrade={(body) => act({ action: "trade", ...body })} />
       )}
 
-      {err && <p className="mt-3 text-sm text-[var(--red)]">{err}</p>}
+      {err && <p className="mt-3 text-sm font-extrabold text-[var(--red)]">{err}</p>}
 
-      {/* Round history */}
       {f.kind === "rounds" && d.rounds.some((r) => r.winner !== undefined) && (
-        <ul className="mt-4 space-y-1 text-xs">
+        <ul className="mt-4 space-y-1.5 text-xs">
           {d.rounds.filter((r) => r.winner !== undefined).map((r) => (
-            <li key={r.n} className="flex justify-between rounded-md border border-[var(--line)] px-3 py-1.5">
-              <span>R{r.n}: you {arrow(r.picks[me]?.direction)} {r.picks[me]?.multiplier ?? ""}{r.picks[me] ? "x" : "(no pick)"} · them {arrow(r.picks[them]?.direction)} {r.picks[them]?.multiplier ?? ""}{r.picks[them] ? "x" : "(no pick)"}</span>
+            <li key={r.n} className="panel-flat flex flex-wrap justify-between gap-2 px-3 py-2">
+              <span>Round {r.n}: you {arrow(r.picks[me]?.direction)}{r.picks[me] ? ` ${r.picks[me]!.multiplier}x` : ""}, them {arrow(r.picks[them]?.direction)}{r.picks[them] ? ` ${r.picks[them]!.multiplier}x` : ""}</span>
               <b className={r.winner === me ? "text-[var(--green)]" : r.winner === them ? "text-[var(--red)]" : "text-[var(--muted)]"}>
-                {r.winner === me ? "WON" : r.winner === them ? "LOST" : "TIE"}
+                {r.winner === me ? "You took it" : r.winner === them ? "They took it" : "Tie"}
               </b>
             </li>
           ))}
@@ -213,12 +189,13 @@ export default function DuelScreen({ duelId, maxMultiplier, onClose }: { duelId:
 }
 
 function RoundPanel({
-  round, me, them, now, live, maxMultiplier, mult, setMult, onPick,
+  round, me, them, now, ticks, live, maxMultiplier, mult, setMult, onPick,
 }: {
   round: Round & { hasPicked?: Record<Side, boolean> };
   me: Side;
   them: Side;
   now: number;
+  ticks: Tick[];
   live: number | null;
   maxMultiplier: number;
   mult: number;
@@ -227,38 +204,8 @@ function RoundPanel({
 }) {
   const myPick = round.picks[me];
   const theyPicked = round.lockedAt !== undefined ? !!round.picks[them] : !!round.hasPicked?.[them];
+  const locked = round.lockedAt !== undefined;
 
-  if (round.lockedAt === undefined) {
-    return (
-      <div className="rounded-xl border border-[var(--line)] p-4">
-        <div className="mb-3 flex items-baseline justify-between">
-          <p className="font-bold">Round {round.n}: make your call</p>
-          <p className="text-2xl font-extrabold tabular-nums">{secs(round.pickClosesAt - now)}s</p>
-        </div>
-        <p className="mb-3 text-center text-sm text-[var(--muted)]">Live {live ? `$${formatPrice(live)}` : "…"} · {theyPicked ? "✅ They've locked in" : "⏳ They're thinking…"}</p>
-        {myPick ? (
-          <p className="rounded-lg bg-[var(--bg)] p-3 text-center font-semibold">You picked {arrow(myPick.direction)} at {myPick.multiplier}x. Waiting for the reveal…</p>
-        ) : (
-          <>
-            <div className="mb-3 flex flex-wrap justify-center gap-2">
-              {MULTIPLIERS.map((x) => (
-                <button key={x} onClick={() => setMult(x)} disabled={x > maxMultiplier} className={`rounded-lg border px-3 py-1.5 text-sm ${x === mult ? "border-[var(--purple)] bg-[var(--purple)] font-semibold" : "border-[var(--line)]"} disabled:opacity-40`}>
-                  {x > maxMultiplier ? "🔒 " : ""}{x}x
-                </button>
-              ))}
-            </div>
-            <p className="mb-3 text-center text-xs text-[var(--muted)]">A right call at {mult}x scores +${roundPayout(mult) - 100}. Higher multiplier = bigger score but a harder target.</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => onPick("up")} className="rounded-xl bg-[var(--green)] p-4 text-lg font-bold text-black">▲ HIGHER</button>
-              <button onClick={() => onPick("down")} className="rounded-xl bg-[var(--red)] p-4 text-lg font-bold text-black">▼ LOWER</button>
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  // Locked: both picks revealed, waiting for the close.
   const target = (s: Side) => {
     const p = round.picks[s];
     return p && round.entryPrice && round.sigma ? targetPrices(round.entryPrice, p.multiplier, round.sigma, 1)[p.direction] : null;
@@ -268,28 +215,72 @@ function RoundPanel({
     if (!p || t === null || live === null) return null;
     return p.direction === "up" ? live > t : live < t;
   };
+
+  const lines: ChartLine[] = [];
+  if (locked && round.entryPrice) {
+    lines.push({ price: round.entryPrice, label: "Start", color: "#fff5e8", dashed: true });
+    const tm = target(me), tt = target(them);
+    if (tm !== null && round.picks[me]) lines.push({ price: tm, label: `You ${round.picks[me]!.direction === "up" ? "▲" : "▼"}`, color: "var(--banana)" });
+    if (tt !== null && round.picks[them]) lines.push({ price: tt, label: `Them ${round.picks[them]!.direction === "up" ? "▲" : "▼"}`, color: "var(--pink)" });
+  }
+
   return (
-    <div className="rounded-xl border border-[var(--line)] p-4">
-      <div className="mb-3 flex items-baseline justify-between">
-        <p className="font-bold">Round {round.n}: picks revealed</p>
-        <p className="text-2xl font-extrabold tabular-nums">{round.expiresAt ? (now < round.expiresAt ? clock(round.expiresAt - now) : "settling…") : ""}</p>
+    <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+      <div>
+        <PriceChart ticks={ticks} lines={lines} height={230} />
+        <p className="mt-2 text-xs text-[var(--muted)]">Live price {live ? `$${formatPrice(live)}` : "…"}{locked && round.entryPrice ? `, round started at $${formatPrice(round.entryPrice)}` : ""}</p>
       </div>
-      <p className="mb-3 text-center text-sm text-[var(--muted)]">
-        Entry ${round.entryPrice ? formatPrice(round.entryPrice) : "–"} · live <b className="text-[var(--text)]">{live ? `$${formatPrice(live)}` : "…"}</b>
-      </p>
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        {[me, them].map((s) => {
-          const p = round.picks[s], t = target(s), w = winning(s);
-          return (
-            <div key={s} className={`rounded-lg border p-3 ${w === true ? "border-[var(--green)]" : w === false ? "border-[var(--red)]" : "border-[var(--line)]"}`}>
-              <p className="text-xs text-[var(--muted)]">{s === me ? "You" : "Them"}</p>
-              <p className="font-bold">{p ? `${arrow(p.direction)} ${p.multiplier}x` : "No pick"}</p>
-              {t !== null && <p className="text-xs">{p!.direction === "up" ? "above" : "below"} ${formatPrice(t)}</p>}
-              {w !== null && <p className={`text-xs font-semibold ${w ? "text-[var(--green)]" : "text-[var(--red)]"}`}>{w ? "winning" : "losing"}</p>}
-            </div>
-          );
-        })}
-      </div>
+
+      {!locked ? (
+        <div className="panel-flat p-4">
+          <div className="mb-3 flex items-baseline justify-between">
+            <p className="display text-2xl">Round {round.n}</p>
+            <p className="display num text-4xl text-[var(--banana)]">{secs(round.pickClosesAt - now)}s</p>
+          </div>
+          <p className="mb-3 text-sm font-extrabold">{theyPicked ? "✅ They've locked in" : "⏳ They're still thinking"}</p>
+          {myPick ? (
+            <p className="rounded-xl border-2 border-[var(--ink)] bg-[var(--bg)] p-3 text-center font-extrabold">
+              You called {arrow(myPick.direction)} at {myPick.multiplier}x. Picks reveal when the round locks.
+            </p>
+          ) : (
+            <>
+              <Field label="Multiplier">
+                {MULTIPLIERS.map((x) => (
+                  <Pill key={x} on={x === mult} onClick={() => setMult(x)} disabled={x > maxMultiplier}>
+                    {x > maxMultiplier ? "🔒 " : ""}{x}x
+                  </Pill>
+                ))}
+              </Field>
+              <p className="mb-3 text-xs text-[var(--muted)]">A right call at {mult}x scores +${roundPayout(mult) - 100}. Bigger multiplier, harder target.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" onClick={() => onPick("up")} className="btn btn-up display p-4 text-2xl">▲ Higher</button>
+                <button type="button" onClick={() => onPick("down")} className="btn btn-down display p-4 text-2xl">▼ Lower</button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="panel-flat p-4">
+          <div className="mb-3 flex items-baseline justify-between">
+            <p className="display text-2xl">Round {round.n}</p>
+            <p className="display num text-4xl text-[var(--banana)]">{round.expiresAt ? (now < round.expiresAt ? clock(round.expiresAt - now) : "…") : ""}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            {[me, them].map((s) => {
+              const p = round.picks[s], t = target(s), w = winning(s);
+              return (
+                <div key={s} className={`rounded-xl border-[3px] p-3 ${w === true ? "border-[var(--green)]" : w === false ? "border-[var(--red)]" : "border-[var(--ink)]"}`}>
+                  <p className="text-xs font-extrabold text-[var(--muted)]">{s === me ? "You" : "Them"}</p>
+                  <p className="font-black">{p ? `${arrow(p.direction)} ${p.multiplier}x` : "No call"}</p>
+                  {t !== null && <p className="text-xs">needs {p!.direction === "up" ? "above" : "below"} ${formatPrice(t)}</p>}
+                  {w !== null && <p className={`text-xs font-black ${w ? "text-[var(--green)]" : "text-[var(--red)]"}`}>{w ? "winning" : "losing"}</p>}
+                </div>
+              );
+            })}
+          </div>
+          {now >= (round.expiresAt ?? Infinity) && <p className="mt-3 text-center text-sm font-extrabold text-[var(--muted)]">Checking the closing price…</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -308,50 +299,53 @@ function ArenaPanel({
   const [minutes, setMinutes] = useState(1);
   const [amount, setAmount] = useState(50);
   const [mult, setMult] = useState(1);
+  const { ticks, price } = usePriceStream(market);
   const left = endsAt - now;
   const fits = (m: number) => now + m * 60000 + 30000 < endsAt;
+  const lines: ChartLine[] = trades
+    .filter((t) => t.status === "open" && t.market === market)
+    .map((t) => ({ price: t.targetPrice, label: `${t.side === me ? "You" : "Them"} ${t.direction === "up" ? "▲" : "▼"}`, color: t.side === me ? "var(--banana)" : "var(--pink)" }));
 
   return (
-    <div className="rounded-xl border border-[var(--line)] p-4">
-      <div className="mb-3 flex items-baseline justify-between">
-        <p className="font-bold">Arena: trade to win</p>
-        <p className="text-2xl font-extrabold tabular-nums">{left > 0 ? clock(left) : "settling…"}</p>
+    <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex gap-2">{MARKETS.map((m) => <Pill key={m} on={m === market} onClick={() => setMarket(m)}>{m}</Pill>)}</div>
+          <p className="display num text-2xl">{price ? `$${formatPrice(price)}` : "…"}</p>
+        </div>
+        <PriceChart ticks={ticks} lines={lines} height={230} />
+        {trades.length > 0 && (
+          <ul className="mt-3 space-y-1.5 text-xs">
+            {[...trades].reverse().slice(0, 10).map((t) => (
+              <li key={t.id} className="panel-flat flex justify-between gap-2 px-3 py-2">
+                <span>{t.side === me ? "You" : "Them"}: {t.direction === "up" ? "▲" : "▼"} {t.market} ${t.amount} at {t.multiplier}x</span>
+                <b className={t.status === "won" ? "text-[var(--green)]" : t.status === "lost" ? "text-[var(--red)]" : "text-[var(--muted)]"}>
+                  {t.status === "open" ? clock(t.expiresAt - now) : t.status === "won" ? `+$${t.pnl}` : t.status === "lost" ? `-$${t.amount}` : "push"}
+                </b>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-      {left > 0 && (
-        <>
-          <Row>{MARKETS.map((m) => <Chip key={m} on={m === market} onClick={() => setMarket(m)}>{m}</Chip>)}</Row>
-          <Row>{DURATIONS_MIN.map((m) => <Chip key={m} on={m === minutes} disabled={!fits(m)} onClick={() => setMinutes(m)}>{m}m</Chip>)}</Row>
-          <Row>{AMOUNTS.map((a) => <Chip key={a} on={a === amount} onClick={() => setAmount(a)}>${a}</Chip>)}</Row>
-          <Row>{MULTIPLIERS.map((x) => <Chip key={x} on={x === mult} disabled={x > maxMultiplier} onClick={() => setMult(x)}>{x > maxMultiplier ? "🔒 " : ""}{x}x</Chip>)}</Row>
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            <button disabled={!fits(minutes)} onClick={() => onTrade({ market, direction: "up", minutes, amount, multiplier: mult })} className="rounded-xl bg-[var(--green)] p-3 font-bold text-black disabled:opacity-50">▲ HIGHER</button>
-            <button disabled={!fits(minutes)} onClick={() => onTrade({ market, direction: "down", minutes, amount, multiplier: mult })} className="rounded-xl bg-[var(--red)] p-3 font-bold text-black disabled:opacity-50">▼ LOWER</button>
-          </div>
-        </>
-      )}
-      {trades.length > 0 && (
-        <ul className="mt-4 space-y-1 text-xs">
-          {[...trades].reverse().slice(0, 12).map((t) => (
-            <li key={t.id} className="flex justify-between rounded-md border border-[var(--line)] px-3 py-1.5">
-              <span>{t.side === me ? "You" : "Them"}: {t.direction === "up" ? "▲" : "▼"} {t.market} ${t.amount} @ {t.multiplier}x</span>
-              <b className={t.status === "won" ? "text-[var(--green)]" : t.status === "lost" ? "text-[var(--red)]" : "text-[var(--muted)]"}>
-                {t.status === "open" ? clock(t.expiresAt - now) : t.status === "won" ? `+$${t.pnl}` : t.status === "lost" ? `-$${t.amount}` : "push"}
-              </b>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="panel-flat p-4">
+        <div className="mb-3 flex items-baseline justify-between">
+          <p className="display text-2xl">Arena</p>
+          <p className="display num text-3xl text-[var(--banana)]">{left > 0 ? clock(left) : "…"}</p>
+        </div>
+        {left > 0 ? (
+          <>
+            <Field label="Ends in">{DURATIONS_MIN.map((m) => <Pill key={m} on={m === minutes} disabled={!fits(m)} onClick={() => setMinutes(m)}>{m} min</Pill>)}</Field>
+            <Field label="Amount">{AMOUNTS.map((a) => <Pill key={a} on={a === amount} onClick={() => setAmount(a)}>${a}</Pill>)}</Field>
+            <Field label="Multiplier">{MULTIPLIERS.map((x) => <Pill key={x} on={x === mult} disabled={x > maxMultiplier} onClick={() => setMult(x)}>{x > maxMultiplier ? "🔒 " : ""}{x}x</Pill>)}</Field>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <button type="button" disabled={!fits(minutes)} onClick={() => onTrade({ market, direction: "up", minutes, amount, multiplier: mult })} className="btn btn-up display p-3 text-xl">▲ Higher</button>
+              <button type="button" disabled={!fits(minutes)} onClick={() => onTrade({ market, direction: "down", minutes, amount, multiplier: mult })} className="btn btn-down display p-3 text-xl">▼ Lower</button>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm font-extrabold text-[var(--muted)]">Time&apos;s up. Waiting for the last calls to settle…</p>
+        )}
+      </div>
     </div>
-  );
-}
-
-function Row({ children }: { children: React.ReactNode }) {
-  return <div className="mb-2 flex flex-wrap gap-2">{children}</div>;
-}
-function Chip({ on, onClick, children, disabled }: { on: boolean; onClick: () => void; children: React.ReactNode; disabled?: boolean }) {
-  return (
-    <button onClick={onClick} disabled={disabled} className={`rounded-lg border px-3 py-1.5 text-sm ${on ? "border-[var(--purple)] bg-[var(--purple)] font-semibold" : "border-[var(--line)]"} disabled:opacity-40`}>
-      {children}
-    </button>
   );
 }

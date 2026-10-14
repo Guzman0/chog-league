@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Trade } from "@/lib/game";
+import { play } from "@/lib/sound";
 
 export type Reaction = { kind: "win" | "lose"; text: string; key: string } | null;
 
@@ -31,6 +32,7 @@ export function useReaction(lastSettled: Trade | undefined): Reaction {
     }
     seen.current = id;
     const win = lastSettled.status === "won";
+    play(win ? "win" : "lose");
     setReaction({
       kind: win ? "win" : "lose",
       text: win ? `${pick(WIN_LINES, lastSettled.id)} +$${lastSettled.pnl}` : `${pick(LOSE_LINES, lastSettled.id)} -$${lastSettled.amount}`,
@@ -52,14 +54,14 @@ export default function ChogAvatar({
   crowned?: boolean;
   streak?: number;
   reaction?: Reaction;
-  size?: "lg" | "sm";
+  size?: "lg" | "md" | "sm";
 }) {
   const anim = reaction?.kind === "win" ? "chog-bounce" : reaction?.kind === "lose" ? "chog-shake" : "";
-  const big = size === "lg";
+  const big = size !== "sm";
 
   return (
     <div className={`relative ${big ? "" : "h-full w-full"}`}>
-      <div key={reaction?.key ?? "idle"} className={`${anim} ${streak >= 3 ? "chog-fire" : ""} ${streak <= -3 ? "chog-frost" : ""} overflow-hidden rounded-xl`}>
+      <div key={reaction?.key ?? "idle"} className={`${anim} ${streak >= 3 ? "chog-fire" : ""} ${streak <= -3 ? "chog-frost" : ""} overflow-hidden rounded-2xl border-[3px] border-[var(--ink)]`}>
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={image} alt={name} className={`w-full ${big ? "" : "aspect-square object-cover"} ${reaction?.kind === "lose" ? "chog-grey" : ""}`} />
@@ -69,7 +71,7 @@ export default function ChogAvatar({
       </div>
 
       {crowned && (
-        <span className={`chog-crown pointer-events-none absolute left-1/2 ${big ? "-top-7 text-5xl" : "-top-3 text-xl"}`} title="#1 in this week's league">👑</span>
+        <span className={`chog-crown pointer-events-none absolute left-1/2 ${size === "lg" ? "-top-7 text-5xl" : size === "md" ? "-top-6 text-4xl" : "-top-3 text-xl"}`} title="#1 in this week's league">👑</span>
       )}
 
       {big && streak >= 3 && <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-sm">🔥 {streak}</span>}

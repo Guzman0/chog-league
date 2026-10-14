@@ -20,21 +20,23 @@ function countdown(ms: number) {
 
 export default function Positions({ open, history, practice = false }: { open: Trade[]; history: Trade[]; practice?: boolean }) {
   const now = useNow();
-  if (open.length === 0 && history.length === 0) return null;
+  if (open.length === 0 && history.length === 0) {
+    return <p className="text-center text-sm text-[var(--muted)]">No calls yet. Pick Higher or Lower above and your first result shows up here.</p>;
+  }
 
   return (
-    <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-6">
+    <section className="panel">
       {open.length > 0 && (
         <>
-          <h3 className="mb-3 text-lg font-bold">{practice ? "Open practice trades" : "Open"}</h3>
-          <ul className="mb-6 space-y-2">
+          <h3 className="mb-3 text-xl">{practice ? "Live practice calls" : "Live calls"}</h3>
+          <ul className="mb-5 space-y-2">
             {open.map((t) => (
-              <li key={t.id} className="flex items-center justify-between rounded-lg border border-[var(--line)] p-3 text-sm">
+              <li key={t.id} className="panel-flat flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
                 <span>
                   <b className={t.direction === "up" ? "text-[var(--green)]" : "text-[var(--red)]"}>{t.direction === "up" ? "▲" : "▼"} {t.market}</b>{" "}
-                  ${t.amount} @ {t.multiplier}x · {t.direction === "up" ? "above" : "below"} ${formatPrice(t.targetPrice)}
+                  ${t.amount} at {t.multiplier}x, needs {t.direction === "up" ? "above" : "below"} ${formatPrice(t.targetPrice)}
                 </span>
-                <span className="tabular-nums text-[var(--muted)]">{countdown(t.expiresAt - now)} · win ${payoutIfWin(t.amount, t.multiplier)}</span>
+                <span className="num font-black">{countdown(t.expiresAt - now)} <span className="text-[var(--muted)]">for ${payoutIfWin(t.amount, t.multiplier)}</span></span>
               </li>
             ))}
           </ul>
@@ -42,15 +44,15 @@ export default function Positions({ open, history, practice = false }: { open: T
       )}
       {history.length > 0 && (
         <>
-          <h3 className="mb-3 text-lg font-bold">{practice ? "Practice history" : "History"}</h3>
+          <h3 className="mb-3 text-xl">{practice ? "Practice results" : "Results"}</h3>
           <ul className="space-y-2">
             {history.map((t) => (
-              <li key={t.id} className="flex items-center justify-between rounded-lg border border-[var(--line)] p-3 text-sm">
+              <li key={t.id} className="panel-flat flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
                 <span>
-                  {t.direction === "up" ? "▲" : "▼"} {t.market} ${t.amount} @ {t.multiplier}x · target ${formatPrice(t.targetPrice)} · closed ${formatPrice(t.settlePrice ?? 0)}
+                  {t.direction === "up" ? "▲" : "▼"} {t.market} ${t.amount} at {t.multiplier}x: target ${formatPrice(t.targetPrice)}, closed ${formatPrice(t.settlePrice ?? 0)}
                 </span>
-                <span className={`font-semibold ${t.status === "won" ? "text-[var(--green)]" : t.status === "lost" ? "text-[var(--red)]" : "text-[var(--muted)]"}`}>
-                  {t.status === "won" ? `WON +$${t.pnl}` : t.status === "lost" ? `LOST -$${t.amount}` : "PUSH"}
+                <span className={`font-black ${t.status === "won" ? "text-[var(--green)]" : t.status === "lost" ? "text-[var(--red)]" : "text-[var(--muted)]"}`}>
+                  {t.status === "won" ? `Won +$${t.pnl}` : t.status === "lost" ? `Lost $${t.amount}` : "Push, refunded"}
                 </span>
               </li>
             ))}

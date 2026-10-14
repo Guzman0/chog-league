@@ -1,20 +1,114 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Chog League: "arcade sticker" look, taken from the Chog art itself.
+   Thick ink outlines, hard offset shadows, flat bubblegum / sky / banana.
+--------------------------------------------------------------------------- */
 :root {
-  --bg: #0e0b1a;
-  --panel: #1a1530;
-  --line: #2e2650;
-  --text: #f1edff;
-  --muted: #a49cc4;
-  --purple: #836ef9;
-  --green: #3ddc97;
-  --red: #ff6b81;
+  --bg: #24124f;       /* grape */
+  --panel: #33206b;    /* plum */
+  --panel-2: #2a1a5c;  /* plum, recessed */
+  --line: #5b45a8;     /* soft divider on plum */
+  --ink: #120a2b;      /* outlines + text on bright fills */
+  --text: #fff5e8;     /* paper */
+  --muted: #c9bbf2;    /* lavender */
+  --purple: #8b74ff;   /* Chog / Monad purple */
+  --pink: #ff7ac6;     /* bubblegum */
+  --sky: #5ce1f2;
+  --banana: #ffd84d;
+  --green: #4fe3a1;    /* HIGHER */
+  --red: #ff5e7e;      /* LOWER */
+  --radius: 20px;
+  --font-display: "Lilita One";
+  --font-body: "Nunito";
 }
 
+html { color-scheme: dark; }
+
 body {
-  background: var(--bg);
+  background-color: var(--bg);
+  /* faint comic halftone dots */
+  background-image: radial-gradient(rgba(255, 255, 255, 0.055) 1.2px, transparent 1.3px);
+  background-size: 18px 18px;
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body), ui-rounded, system-ui, sans-serif;
+  font-weight: 600;
+  min-height: 100vh;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.tabular-nums, .num { font-variant-numeric: tabular-nums; }
+
+@layer components {
+/* Panels are stickers: ink outline + hard shadow. */
+.panel {
+  background: var(--panel);
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 6px 6px 0 var(--ink);
+  padding: 1.25rem;
+}
+@media (min-width: 640px) { .panel { padding: 1.5rem; } }
+.panel-flat {
+  background: var(--panel-2);
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+}
+
+/* Small field label (sentence case, never all caps) */
+.label { font-size: 0.8rem; font-weight: 800; color: var(--muted); margin-bottom: 0.35rem; }
+
+/* Choice chips */
+.pill {
+  border: 2px solid var(--ink);
+  background: var(--panel-2);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  box-shadow: 2px 2px 0 var(--ink);
+  transition: transform 80ms, box-shadow 80ms;
+}
+.pill:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
+.pill[aria-pressed="true"] { background: var(--banana); color: var(--ink); }
+.pill:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Buttons */
+.btn {
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  font-weight: 900;
+  box-shadow: 4px 4px 0 var(--ink);
+  transition: transform 80ms, box-shadow 80ms;
+}
+.btn:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--purple); color: var(--text); }
+.btn-banana { background: var(--banana); color: var(--ink); }
+.btn-ghost { background: var(--panel-2); color: var(--text); }
+.btn-up { background: var(--green); color: var(--ink); }
+.btn-down { background: var(--red); color: var(--ink); }
+
+:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+
+/* Wordmark */
+.wordmark {
+  font-family: var(--font-display), sans-serif;
+  color: var(--banana);
+  -webkit-text-stroke: 2px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 var(--ink);
+  transform: rotate(-2deg);
+  display: inline-block;
+  line-height: 1;
+}
+
 }
 
 /* ---- Chog reactions ---- */
@@ -43,7 +137,7 @@ body {
   85% { opacity: 1; }
   100% { transform: translate(-50%, -16px); opacity: 0; }
 }
-.chog-pop { animation: chog-pop 3.4s ease-out forwards; }
+.chog-pop { animation: chog-pop 3.4s ease-out forwards; border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
 
 @keyframes chog-confetti {
   0% { transform: translateY(-20px) rotate(0); opacity: 0; }
@@ -63,15 +157,38 @@ body {
   0%, 100% { transform: translateX(-50%) rotate(-8deg); }
   50% { transform: translateX(-50%) rotate(8deg) translateY(-3px); }
 }
-.chog-crown { animation: chog-crown 2.4s ease-in-out infinite; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); }
+.chog-crown { animation: chog-crown 2.4s ease-in-out infinite; filter: drop-shadow(0 2px 0 var(--ink)); }
 
 @keyframes chog-fire {
-  0%, 100% { box-shadow: 0 0 12px 2px #ff8a3d, 0 0 0 2px #ff8a3d; }
-  50% { box-shadow: 0 0 24px 6px #ffb347, 0 0 0 2px #ffb347; }
+  0%, 100% { box-shadow: 0 0 12px 2px #ff8a3d, 0 0 0 3px #ff8a3d; }
+  50% { box-shadow: 0 0 24px 6px #ffb347, 0 0 0 3px #ffb347; }
 }
 .chog-fire { animation: chog-fire 1.2s ease-in-out infinite; }
-.chog-frost { box-shadow: 0 0 16px 3px #7fd6ff, 0 0 0 2px #7fd6ff; }
+.chog-frost { box-shadow: 0 0 16px 3px #7fd6ff, 0 0 0 3px #7fd6ff; }
+
+/* Landing sticker pile: the one orchestrated entrance on the site */
+@keyframes sticker-drop {
+  0% { transform: translateY(-40px) rotate(var(--r)) scale(1.15); opacity: 0; }
+  60% { transform: translateY(4px) rotate(var(--r)) scale(0.98); opacity: 1; }
+  100% { transform: translateY(0) rotate(var(--r)) scale(1); opacity: 1; }
+}
+.sticker {
+  border: 4px solid var(--ink);
+  border-radius: 22px;
+  box-shadow: 6px 6px 0 var(--ink);
+  transform: rotate(var(--r));
+  animation: sticker-drop 0.55s cubic-bezier(.2, .9, .3, 1.3) both;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+/* Live chart pulse */
+@keyframes live-pulse { 0%, 100% { r: 4; } 50% { r: 6.5; } }
+.live-dot { animation: live-pulse 1.4s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .chog-bounce, .chog-shake, .chog-pop, .chog-confetti, .chog-tear, .chog-crown, .chog-fire { animation-duration: 0.01s; animation-iteration-count: 1; }
+  .chog-bounce, .chog-shake, .chog-pop, .chog-confetti, .chog-tear, .chog-crown, .chog-fire, .sticker, .live-dot {
+    animation-duration: 0.01s !important;
+    animation-iteration-count: 1 !important;
+  }
 }

@@ -3,30 +3,45 @@
 import { useEffect, useState } from "react";
 import {
   AMOUNTS, DURATIONS_MIN, LEVELS, MARKETS, MULTIPLIERS,
-  formatPrice, payoutIfWin, targetPrices, type ChogSummary, type Direction, type Market,
+  formatPrice, payoutIfWin, targetPrices, type ChogSummary, type Direction, type Market, type Trade,
 } from "@/lib/game";
+import { play } from "@/lib/sound";
+import PriceChart, { type ChartLine } from "./PriceChart";
+import Positions from "./Positions";
+import { Field, Pill } from "./ui";
+import { usePriceStream } from "./usePriceStream";
 
-type Quote = { price: number; sigma: number };
-
-export default function TradePanel({ tokenId, summary, onTraded, practice = false }: { tokenId: string; summary?: ChogSummary; onTraded: () => void; practice?: boolean }) {
+// The Trade tab: live chart on the left, controls on the right, positions below.
+export default function TradePanel({
+  tokenId, summary, open, history, onTraded, practice = false,
+}: {
+  tokenId: string;
+  summary?: ChogSummary;
+  open: Trade[];
+  history: Trade[];
+  onTraded: () => void;
+  practice?: boolean;
+}) {
   const [market, setMarket] = useState<Market>("BTC");
   const [minutes, setMinutes] = useState(1);
   const [amount, setAmount] = useState(25);
   const [multiplier, setMultiplier] = useState(1);
-  const [quote, setQuote] = useState<Quote | null>(null);
-  const [busy, setBusy] = useState<Direction | null>(null);
+  const [sigma, setSigma] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const { ticks, price } = usePriceStream(market);
 
+  // Each market's typical 1-minute move sets how far targets sit (from our server).
   useEffect(() => {
     let alive = true;
-    setQuote(null);
+    setSigma(null);
     const load = () =>
       fetch(`/api/price?m=${market}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => alive && d && setQuote({ price: d.price, sigma: d.sigma }))
+        .then((d) => alive && d && setSigma(d.sigma))
         .catch(() => {});
     load();
-    const id = setInterval(load, 2000);
+    const id = setInterval(load, 15000);
     return () => {
       alive = false;
       clearInterval(id);
@@ -34,12 +49,27 @@ export default function TradePanel({ tokenId, summary, onTraded, practice = fals
   }, [market]);
 
   const maxMult = practice ? Math.max(...MULTIPLIERS) : summary?.level.maxMultiplier ?? 1.5;
-  const targets = quote ? targetPrices(quote.price, multiplier, quote.sigma, minutes) : null;
+  const targets = price && sigma ? targetPrices(price, multiplier, sigma, minutes) : null;
   const win = payoutIfWin(amount, multiplier);
   const balance = summary?.weekBalance ?? 0;
+  const canTrade = !!targets && !busy && amount <= balance;
+
+  const lines: ChartLine[] = [
+    ...open.filter((t) => t.market === market).map((t) => ({
+      price: t.targetPrice,
+      label: `${t.direction === "up" ? "▲" : "▼"} $${t.amount} @ ${t.multiplier}x`,
+      color: t.direction === "up" ? "var(--green)" : "var(--red)",
+    })),
+    ...(targets && multiplier > 1
+      ? [
+          { price: targets.up, label: "Higher above", color: "#a8f0cf", dashed: true },
+          { price: targets.down, label: "Lower below", color: "#ffb3c2", dashed: true },
+        ]
+      : []),
+  ];
 
   async function trade(direction: Direction) {
-    setBusy(direction);
+    setBusy(true);
     setMsg(null);
     try {
       const res = await fetch("/api/trade", {
@@ -49,104 +79,73 @@ export default function TradePanel({ tokenId, summary, onTraded, practice = fals
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
-      setMsg({ text: `${direction === "up" ? "HIGHER" : "LOWER"} on ${market} placed. Settles at ${new Date(d.trade.expiresAt).toLocaleTimeString()}.`, ok: true });
+      play("place");
+      setMsg({ text: `${direction === "up" ? "HIGHER" : "LOWER"} on ${market} is in. Result at ${new Date(d.trade.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`, ok: true });
       onTraded();
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : "Trade failed", ok: false });
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
   return (
-    <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-6">
-      <div className="mb-4 flex items-baseline justify-between">
-        <h3 className="text-lg font-bold">{practice ? "Practice trade" : "Trade"}</h3>
-        <p className="text-sm text-[var(--muted)]">{practice ? "Practice balance" : "Balance"} ${balance.toLocaleString()}</p>
-      </div>
-      {practice && (
-        <p className="mb-4 rounded-lg border border-[var(--line)] bg-[var(--bg)] p-3 text-xs text-[var(--muted)]">
-          Practice mode: demo trades with this Chog that don&apos;t count toward its record or the league. All multipliers are unlocked here; in the league they unlock as a Chog levels up.
-        </p>
-      )}
+    <div className="space-y-6">
+      <section className="panel grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+        <div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex gap-2">
+              {MARKETS.map((m) => (
+                <Pill key={m} on={m === market} onClick={() => setMarket(m)}>{m}</Pill>
+              ))}
+            </div>
+            <p className="display num text-3xl">{price ? `$${formatPrice(price)}` : "…"}</p>
+          </div>
+          <PriceChart ticks={ticks} lines={lines} height={240} />
+          <p className="mt-2 text-xs text-[var(--muted)]">Live {market}/USD, last 2 minutes. Results use the exchange&apos;s closing price.</p>
+        </div>
 
-      <Row label="Market">
-        {MARKETS.map((m) => (
-          <Pill key={m} active={m === market} onClick={() => setMarket(m)}>{m}</Pill>
-        ))}
-      </Row>
+        <div>
+          <Field label="Ends in">
+            {DURATIONS_MIN.map((d) => (
+              <Pill key={d} on={d === minutes} onClick={() => setMinutes(d)}>{d} min</Pill>
+            ))}
+          </Field>
+          <Field label={`Amount (you have $${balance.toLocaleString()})`}>
+            {AMOUNTS.map((a) => (
+              <Pill key={a} on={a === amount} onClick={() => setAmount(a)} disabled={a > balance}>${a}</Pill>
+            ))}
+          </Field>
+          <Field label="Multiplier: bigger payout, harder target">
+            {MULTIPLIERS.map((x) => {
+              const locked = x > maxMult;
+              const needs = LEVELS.find((l) => l.maxMultiplier >= x)?.level;
+              return (
+                <Pill key={x} on={x === multiplier} onClick={() => setMultiplier(x)} disabled={locked} title={locked ? `Unlocks at level ${needs}` : undefined}>
+                  {locked ? "🔒 " : ""}{x}x
+                </Pill>
+              );
+            })}
+          </Field>
 
-      <div className="my-4 text-center">
-        <p className="text-xs text-[var(--muted)]">{market}/USD live</p>
-        <p className="text-3xl font-bold tabular-nums">{quote ? `$${formatPrice(quote.price)}` : "…"}</p>
-      </div>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button type="button" onClick={() => trade("up")} disabled={!canTrade} className="btn btn-up p-4 text-left">
+              <span className="display block text-2xl">▲ Higher</span>
+              <span className="block text-xs font-extrabold">{targets ? `above $${formatPrice(targets.up)}` : "…"}</span>
+              <span className="block text-sm font-black">win ${win}</span>
+            </button>
+            <button type="button" onClick={() => trade("down")} disabled={!canTrade} className="btn btn-down p-4 text-left">
+              <span className="display block text-2xl">▼ Lower</span>
+              <span className="block text-xs font-extrabold">{targets ? `below $${formatPrice(targets.down)}` : "…"}</span>
+              <span className="block text-sm font-black">win ${win}</span>
+            </button>
+          </div>
+          {msg && <p className={`mt-3 text-sm font-extrabold ${msg.ok ? "text-[var(--green)]" : "text-[var(--red)]"}`}>{msg.text}</p>}
+          {practice && <p className="mt-3 text-xs text-[var(--muted)]">Practice calls don&apos;t count toward this Chog&apos;s record or the league, and every multiplier is unlocked.</p>}
+        </div>
+      </section>
 
-      <Row label="Duration">
-        {DURATIONS_MIN.map((d) => (
-          <Pill key={d} active={d === minutes} onClick={() => setMinutes(d)}>{d}m</Pill>
-        ))}
-      </Row>
-      <Row label="Amount">
-        {AMOUNTS.map((a) => (
-          <Pill key={a} active={a === amount} onClick={() => setAmount(a)} disabled={a > balance}>${a}</Pill>
-        ))}
-      </Row>
-      <Row label="Multiplier">
-        {MULTIPLIERS.map((x) => {
-          const locked = x > maxMult;
-          const needs = LEVELS.find((l) => l.maxMultiplier >= x)?.level;
-          return (
-            <Pill key={x} active={x === multiplier} onClick={() => setMultiplier(x)} disabled={locked} title={locked ? `Unlocks at Level ${needs}` : undefined}>
-              {locked ? "🔒 " : ""}{x}x
-            </Pill>
-          );
-        })}
-      </Row>
-      <p className="mb-4 text-xs text-[var(--muted)]">Higher multiplier = bigger payout, but the price has to move further.{practice ? "" : " Your Chog unlocks more by levelling up."}</p>
-
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={() => trade("up")}
-          disabled={!quote || !!busy || amount > balance}
-          className="rounded-xl bg-[var(--green)] p-4 text-left font-bold text-black disabled:opacity-50"
-        >
-          <span className="block text-lg">▲ HIGHER</span>
-          <span className="block text-xs font-normal">{targets ? `Above $${formatPrice(targets.up)}` : "…"}</span>
-          <span className="block text-sm">Win ${win}</span>
-        </button>
-        <button
-          onClick={() => trade("down")}
-          disabled={!quote || !!busy || amount > balance}
-          className="rounded-xl bg-[var(--red)] p-4 text-left font-bold text-black disabled:opacity-50"
-        >
-          <span className="block text-lg">▼ LOWER</span>
-          <span className="block text-xs font-normal">{targets ? `Below $${formatPrice(targets.down)}` : "…"}</span>
-          <span className="block text-sm">Win ${win}</span>
-        </button>
-      </div>
-      {msg && <p className={`mt-3 text-sm ${msg.ok ? "text-[var(--green)]" : "text-[var(--red)]"}`}>{msg.text}</p>}
-    </section>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-3">
-      <p className="mb-1 text-xs uppercase tracking-wide text-[var(--muted)]">{label}</p>
-      <div className="flex flex-wrap gap-2">{children}</div>
+      <Positions practice={practice} open={open} history={history} />
     </div>
-  );
-}
-
-function Pill({ active, disabled, onClick, children, title }: { active: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode; title?: string }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`rounded-lg border px-3 py-1.5 text-sm ${active ? "border-[var(--purple)] bg-[var(--purple)] font-semibold" : "border-[var(--line)]"} disabled:opacity-40`}
-    >
-      {children}
-    </button>
   );
 }

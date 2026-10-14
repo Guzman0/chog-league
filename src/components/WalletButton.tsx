@@ -16,14 +16,14 @@ export default function WalletButton() {
   if (isConnected && address) {
     if (chainId !== monad.id) {
       return (
-        <button onClick={() => switchChain({ chainId: monad.id })} className="rounded-lg bg-[var(--red)] px-4 py-2 text-sm font-semibold text-black">
+        <button onClick={() => switchChain({ chainId: monad.id })} className="btn btn-down px-4 py-2 text-sm">
           Switch to Monad
         </button>
       );
     }
     return (
-      <button onClick={() => disconnect()} className="rounded-lg border border-[var(--line)] px-4 py-2 text-sm">
-        {short(address)} · Disconnect
+      <button onClick={() => disconnect()} className="btn btn-ghost whitespace-nowrap px-3 py-2 text-sm sm:px-4" title="Disconnect">
+        {short(address)}
       </button>
     );
   }
@@ -34,7 +34,7 @@ export default function WalletButton() {
       <button
         onClick={() => injectedConnector && connect({ connector: injectedConnector })}
         disabled={isPending}
-        className="rounded-lg bg-[var(--purple)] px-4 py-2 text-sm font-semibold disabled:opacity-60"
+        className="btn btn-primary whitespace-nowrap px-3 py-2 text-sm sm:px-4"
       >
         {isPending ? "Connecting…" : "Connect wallet"}
       </button>

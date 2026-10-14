@@ -44,22 +44,22 @@ export default function MyChogs({ address, selectedId, onSelect, leaderId }: { a
   }, [address]);
 
   return (
-    <section className="mb-8">
-      <h2 className="mb-3 text-sm uppercase tracking-wide text-[var(--muted)]">My Chogs</h2>
+    <section className="mb-5">
+      <p className="label">Your Chogs</p>
       {chogs === null ? (
         <p className="text-sm text-[var(--muted)]">{status}</p>
       ) : chogs.length === 0 ? (
-        <p className="text-sm text-[var(--muted)]">No Chogs in this wallet. You can still look up any Chog below and spectate.</p>
+        <p className="text-sm text-[var(--muted)]">No Chogs in this wallet. Practice with a random one below, or open any Chog to spectate.</p>
       ) : (
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
           {chogs.map((c) => (
             <button
               key={c.tokenId}
               onClick={() => onSelect(c)}
-              className={`rounded-xl border text-left ${selectedId === c.tokenId ? "border-[var(--purple)]" : "border-[var(--line)]"}`}
+              className={`rounded-2xl p-1 text-left ${selectedId === c.tokenId ? "bg-[var(--banana)] text-[var(--ink)]" : ""}`}
             >
               <ChogAvatar image={c.image} name={c.name} size="sm" crowned={leaderId === c.tokenId} />
-              <p className="truncate px-2 py-1 text-xs">{c.name}</p>
+              <p className="truncate px-1 pt-1 text-xs font-extrabold">{c.name}</p>
             </button>
           ))}
         </div>
