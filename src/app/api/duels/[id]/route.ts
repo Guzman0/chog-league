@@ -3,7 +3,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import {
-  AMOUNTS, DURATIONS_MIN, MARKETS, MAX_OPEN_TRADES, MULTIPLIERS, expiryFor, targetPrices,
+  DURATIONS_MIN, MARKETS, MAX_OPEN_TRADES, MAX_AMOUNT, MAX_MULTIPLIER, MIN_AMOUNT, isValidAmount, expiryFor, targetPrices,
   type Direction, type Market, type Trade,
 } from "@/lib/game";
 import {
@@ -38,7 +38,7 @@ async function view(duel: Duel, side: Side | null, trades: Trade[]) {
 
 // Max multiplier this side may use: league = its Chog's level, practice = everything.
 async function maxMultiplierFor(d: Duel, side: Side) {
-  if (d.mode === "practice") return Math.max(...MULTIPLIERS);
+  if (d.mode === "practice") return MAX_MULTIPLIER;
   return (await chogSummary(tokenOf(d, side), null)).summary.level.maxMultiplier;
 }
 
@@ -136,7 +136,7 @@ async function arenaTrade(id: string, b: Record<string, unknown>, viewer: { wall
   if (!MARKETS.includes(market)) return bad("Unknown market");
   if (direction !== "up" && direction !== "down") return bad("Pick HIGHER or LOWER");
   if (!DURATIONS_MIN.includes(minutes)) return bad("Unsupported duration");
-  if (!AMOUNTS.includes(amount)) return bad("Unsupported amount");
+  if (!isValidAmount(amount)) return bad(`Amount must be a whole number from $${MIN_AMOUNT} to $${MAX_AMOUNT}`);
   const max = await maxMultiplierFor(d, side);
   if (!validMultiplier(multiplier, max)) return bad(`Your Chog can use up to ${max}x`);
 

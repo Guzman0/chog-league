@@ -9,7 +9,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import {
-  AMOUNTS, DURATIONS_MIN, MARKETS, MAX_OPEN_TRADES, MULTIPLIERS,
+  DURATIONS_MIN, MARKETS, MAX_OPEN_TRADES, MAX_AMOUNT, MAX_MULTIPLIER, MIN_AMOUNT, MIN_MULTIPLIER, isValidAmount, isValidMultiplier,
   expiryFor, targetPrices, type Direction, type Market, type Trade,
 } from "@/lib/game";
 import { getSpot, getVolatility } from "@/lib/prices";
@@ -39,8 +39,8 @@ export async function POST(req: Request) {
   if (!MARKETS.includes(market)) return bad("Unknown market");
   if (direction !== "up" && direction !== "down") return bad("Pick HIGHER or LOWER");
   if (!DURATIONS_MIN.includes(minutes)) return bad("Unsupported duration");
-  if (!AMOUNTS.includes(amount)) return bad("Unsupported amount");
-  if (!MULTIPLIERS.includes(multiplier)) return bad("Unsupported multiplier");
+  if (!isValidAmount(amount)) return bad(`Amount must be a whole number from $${MIN_AMOUNT} to $${MAX_AMOUNT}`);
+  if (!isValidMultiplier(multiplier)) return bad(`Multiplier must be ${MIN_MULTIPLIER}x to ${MAX_MULTIPLIER}x, with at most one decimal`);
 
   let wallet = "";
   let practiceId: string | null = null;

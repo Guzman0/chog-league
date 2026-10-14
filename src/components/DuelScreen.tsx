@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AMOUNTS, DURATIONS_MIN, MARKETS, MULTIPLIERS, formatPrice, targetPrices, type Direction, type Market, type Trade } from "@/lib/game";
+import { AMOUNTS, DURATIONS_MIN, MARKETS, MAX_AMOUNT, MIN_AMOUNT, MIN_MULTIPLIER, MULTIPLIERS, formatPrice, targetPrices, type Direction, type Market, type Trade } from "@/lib/game";
 import { FORMATS, other, roundPayout, score, type Duel, type Round, type Side } from "@/lib/duels";
 import type { ChogData } from "@/lib/chog";
 import { play } from "@/lib/sound";
@@ -10,7 +10,7 @@ import PriceChart, { type ChartLine } from "./PriceChart";
 import { fetchChog } from "./MyChogs";
 import { duelAction } from "./useDuels";
 import { usePriceStream, type Tick } from "./usePriceStream";
-import { Field, Pill } from "./ui";
+import { CustomNumber, Field, Pill } from "./ui";
 
 type ArenaSide = { balance: number; open: number; trades: number };
 type View = {
@@ -40,7 +40,7 @@ export default function DuelScreen({ duelId, maxMultiplier, onClose }: { duelId:
   const [v, setV] = useState<View | null>(null);
   const [chogs, setChogs] = useState<Partial<Record<Side, ChogData>>>({});
   const [err, setErr] = useState<string | null>(null);
-  const [mult, setMult] = useState(1);
+  const [mult, setMult] = useState<number | null>(1);
   const [reactions, setReactions] = useState<Partial<Record<Side, Reaction>>>({});
   const seenRounds = useRef<Set<number> | null>(null);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -198,8 +198,8 @@ function RoundPanel({
   ticks: Tick[];
   live: number | null;
   maxMultiplier: number;
-  mult: number;
-  setMult: (n: number) => void;
+  mult: number | null;
+  setMult: (n: number | null) => void;
   onPick: (d: Direction) => void;
 }) {
   const myPick = round.picks[me];
@@ -250,11 +250,12 @@ function RoundPanel({
                     {x > maxMultiplier ? "🔒 " : ""}{x}x
                   </Pill>
                 ))}
+                <CustomNumber label="Custom multiplier" value={mult} presets={MULTIPLIERS} onChange={setMult} suffix="x" decimals={1} min={MIN_MULTIPLIER} max={maxMultiplier} />
               </Field>
-              <p className="mb-3 text-xs text-[var(--muted)]">A right call at {mult}x scores +${roundPayout(mult) - 100}. Bigger multiplier, harder target.</p>
+              <p className="mb-3 text-xs text-[var(--muted)]">{mult !== null ? `A right call at ${mult}x scores +$${roundPayout(mult) - 100}.` : "Pick a multiplier."} Bigger multiplier, harder target.</p>
               <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => onPick("up")} className="btn btn-up display p-4 text-2xl">▲ Higher</button>
-                <button type="button" onClick={() => onPick("down")} className="btn btn-down display p-4 text-2xl">▼ Lower</button>
+                <button type="button" disabled={mult === null} onClick={() => onPick("up")} className="btn btn-up display p-4 text-2xl">▲ Higher</button>
+                <button type="button" disabled={mult === null} onClick={() => onPick("down")} className="btn btn-down display p-4 text-2xl">▼ Lower</button>
               </div>
             </>
           )}
@@ -297,9 +298,10 @@ function ArenaPanel({
 }) {
   const [market, setMarket] = useState<Market>("BTC");
   const [minutes, setMinutes] = useState(1);
-  const [amount, setAmount] = useState(50);
-  const [mult, setMult] = useState(1);
+  const [amount, setAmount] = useState<number | null>(50);
+  const [mult, setMult] = useState<number | null>(1);
   const { ticks, price } = usePriceStream(market);
+  const ready = amount !== null && mult !== null;
   const left = endsAt - now;
   const fits = (m: number) => now + m * 60000 + 30000 < endsAt;
   const lines: ChartLine[] = trades
@@ -335,11 +337,17 @@ function ArenaPanel({
         {left > 0 ? (
           <>
             <Field label="Ends in">{DURATIONS_MIN.map((m) => <Pill key={m} on={m === minutes} disabled={!fits(m)} onClick={() => setMinutes(m)}>{m} min</Pill>)}</Field>
-            <Field label="Amount">{AMOUNTS.map((a) => <Pill key={a} on={a === amount} onClick={() => setAmount(a)}>${a}</Pill>)}</Field>
-            <Field label="Multiplier">{MULTIPLIERS.map((x) => <Pill key={x} on={x === mult} disabled={x > maxMultiplier} onClick={() => setMult(x)}>{x > maxMultiplier ? "🔒 " : ""}{x}x</Pill>)}</Field>
+            <Field label="Amount">
+              {AMOUNTS.map((a) => <Pill key={a} on={a === amount} onClick={() => setAmount(a)}>${a}</Pill>)}
+              <CustomNumber label="Custom amount in dollars" value={amount} presets={AMOUNTS} onChange={setAmount} prefix="$" min={MIN_AMOUNT} max={MAX_AMOUNT} />
+            </Field>
+            <Field label="Multiplier">
+              {MULTIPLIERS.map((x) => <Pill key={x} on={x === mult} disabled={x > maxMultiplier} onClick={() => setMult(x)}>{x > maxMultiplier ? "🔒 " : ""}{x}x</Pill>)}
+              <CustomNumber label="Custom multiplier" value={mult} presets={MULTIPLIERS} onChange={setMult} suffix="x" decimals={1} min={MIN_MULTIPLIER} max={maxMultiplier} />
+            </Field>
             <div className="mt-2 grid grid-cols-2 gap-3">
-              <button type="button" disabled={!fits(minutes)} onClick={() => onTrade({ market, direction: "up", minutes, amount, multiplier: mult })} className="btn btn-up display p-3 text-xl">▲ Higher</button>
-              <button type="button" disabled={!fits(minutes)} onClick={() => onTrade({ market, direction: "down", minutes, amount, multiplier: mult })} className="btn btn-down display p-3 text-xl">▼ Lower</button>
+              <button type="button" disabled={!fits(minutes) || !ready} onClick={() => onTrade({ market, direction: "up", minutes, amount, multiplier: mult })} className="btn btn-up display p-3 text-xl">▲ Higher</button>
+              <button type="button" disabled={!fits(minutes) || !ready} onClick={() => onTrade({ market, direction: "down", minutes, amount, multiplier: mult })} className="btn btn-down display p-3 text-xl">▼ Lower</button>
             </div>
           </>
         ) : (

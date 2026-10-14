@@ -5,7 +5,8 @@ Judging: Novelty 30%, Fun 20%, Retention 20%, Clarity 15%, Execution 15%, $CHOG 
 
 ## The game (inspired by Manic.trade's up/down trading)
 - A Chog is a trading account. Holder picks market (BTC/ETH/SOL/MON), HIGHER or LOWER,
-  duration (1/2/3/5 min), amount ($10–$100 demo) and a payout multiplier (1x–5x).
+  duration (1/2/3/5 min), amount (presets $10–$100 or any whole $1–$500) and a payout multiplier
+  (presets or any 1-decimal value 1x–5x, capped by level; target uses zFor(m) = invNorm(m/(1+m))).
 - Bigger multiplier = bigger payout, but the target price is further away. Targets are set so
   win chance ≈ 1/(1+multiplier), using each market's recent 1-minute volatility (fair game).
 - Level = career net wins (wins − losses). Levels unlock bigger multipliers (L1 1.5x … L5 5x).

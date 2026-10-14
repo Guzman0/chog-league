@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import {
-  AMOUNTS, DURATIONS_MIN, LEVELS, MARKETS, MULTIPLIERS,
+  AMOUNTS, DURATIONS_MIN, LEVELS, MARKETS, MAX_AMOUNT, MAX_MULTIPLIER, MIN_AMOUNT, MIN_MULTIPLIER, MULTIPLIERS,
   formatPrice, payoutIfWin, targetPrices, type ChogSummary, type Direction, type Market, type Trade,
 } from "@/lib/game";
 import { play } from "@/lib/sound";
 import PriceChart, { type ChartLine } from "./PriceChart";
 import Positions from "./Positions";
-import { Field, Pill } from "./ui";
+import { CustomNumber, Field, Pill } from "./ui";
 import { usePriceStream } from "./usePriceStream";
 
 // The Trade tab: live chart on the left, controls on the right, positions below.
@@ -24,8 +24,8 @@ export default function TradePanel({
 }) {
   const [market, setMarket] = useState<Market>("BTC");
   const [minutes, setMinutes] = useState(1);
-  const [amount, setAmount] = useState(25);
-  const [multiplier, setMultiplier] = useState(1);
+  const [amount, setAmount] = useState<number | null>(25);
+  const [multiplier, setMultiplier] = useState<number | null>(1);
   const [sigma, setSigma] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -48,11 +48,11 @@ export default function TradePanel({
     };
   }, [market]);
 
-  const maxMult = practice ? Math.max(...MULTIPLIERS) : summary?.level.maxMultiplier ?? 1.5;
-  const targets = price && sigma ? targetPrices(price, multiplier, sigma, minutes) : null;
-  const win = payoutIfWin(amount, multiplier);
+  const maxMult = practice ? MAX_MULTIPLIER : summary?.level.maxMultiplier ?? 1.5;
+  const targets = price && sigma && multiplier !== null ? targetPrices(price, multiplier, sigma, minutes) : null;
+  const win = amount !== null && multiplier !== null ? payoutIfWin(amount, multiplier) : null;
   const balance = summary?.weekBalance ?? 0;
-  const canTrade = !!targets && !busy && amount <= balance;
+  const canTrade = !!targets && !busy && amount !== null && amount <= balance;
 
   const lines: ChartLine[] = [
     ...open.filter((t) => t.market === market).map((t) => ({
@@ -60,7 +60,7 @@ export default function TradePanel({
       label: `${t.direction === "up" ? "▲" : "▼"} $${t.amount} @ ${t.multiplier}x`,
       color: t.direction === "up" ? "var(--green)" : "var(--red)",
     })),
-    ...(targets && multiplier > 1
+    ...(targets && multiplier !== null && multiplier > 1
       ? [
           { price: targets.up, label: "Higher above", color: "#a8f0cf", dashed: true },
           { price: targets.down, label: "Lower below", color: "#ffb3c2", dashed: true },
@@ -115,6 +115,7 @@ export default function TradePanel({
             {AMOUNTS.map((a) => (
               <Pill key={a} on={a === amount} onClick={() => setAmount(a)} disabled={a > balance}>${a}</Pill>
             ))}
+            <CustomNumber label="Custom amount in dollars" value={amount} presets={AMOUNTS} onChange={setAmount} prefix="$" min={MIN_AMOUNT} max={Math.min(MAX_AMOUNT, Math.max(MIN_AMOUNT, Math.floor(balance)))} />
           </Field>
           <Field label="Multiplier: bigger payout, harder target">
             {MULTIPLIERS.map((x) => {
@@ -126,18 +127,19 @@ export default function TradePanel({
                 </Pill>
               );
             })}
+            <CustomNumber label="Custom multiplier" value={multiplier} presets={MULTIPLIERS} onChange={setMultiplier} suffix="x" decimals={1} min={MIN_MULTIPLIER} max={maxMult} />
           </Field>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
             <button type="button" onClick={() => trade("up")} disabled={!canTrade} className="btn btn-up p-4 text-left">
               <span className="display block text-2xl">▲ Higher</span>
               <span className="block text-xs font-extrabold">{targets ? `above $${formatPrice(targets.up)}` : "…"}</span>
-              <span className="block text-sm font-black">win ${win}</span>
+              <span className="block text-sm font-black">{win !== null ? `win $${win}` : "…"}</span>
             </button>
             <button type="button" onClick={() => trade("down")} disabled={!canTrade} className="btn btn-down p-4 text-left">
               <span className="display block text-2xl">▼ Lower</span>
               <span className="block text-xs font-extrabold">{targets ? `below $${formatPrice(targets.down)}` : "…"}</span>
-              <span className="block text-sm font-black">win ${win}</span>
+              <span className="block text-sm font-black">{win !== null ? `win $${win}` : "…"}</span>
             </button>
           </div>
           {msg && <p className={`mt-3 text-sm font-extrabold ${msg.ok ? "text-[var(--green)]" : "text-[var(--red)]"}`}>{msg.text}</p>}

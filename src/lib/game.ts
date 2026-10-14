@@ -18,8 +18,20 @@ export const MARKETS = ["BTC", "ETH", "SOL", "MON"] as const;
 export type Market = (typeof MARKETS)[number];
 
 export const DURATIONS_MIN = [1, 2, 3, 5];
-export const AMOUNTS = [10, 25, 50, 100];
-export const MULTIPLIERS = [1, 1.5, 2, 3, 4, 5];
+export const AMOUNTS = [10, 25, 50, 100]; // quick-pick buttons; any whole amount in range is allowed
+export const MULTIPLIERS = [1, 1.5, 2, 3, 4, 5]; // quick-pick buttons; any 1-decimal value in range is allowed
+export const MIN_AMOUNT = 1;
+export const MAX_AMOUNT = 500;
+export const MIN_MULTIPLIER = 1;
+export const MAX_MULTIPLIER = 5;
+
+// Typed-in values: whole dollars, and multipliers with at most one decimal (e.g. 2.7x).
+export function isValidAmount(a: number) {
+  return Number.isInteger(a) && a >= MIN_AMOUNT && a <= MAX_AMOUNT;
+}
+export function isValidMultiplier(x: number, max = MAX_MULTIPLIER) {
+  return Number.isFinite(x) && x >= MIN_MULTIPLIER && x <= max && Math.abs(x * 10 - Math.round(x * 10)) < 1e-9;
+}
 export const WEEKLY_BALANCE = 1000;
 export const MAX_OPEN_TRADES = 5;
 
@@ -38,14 +50,32 @@ export function payoutIfWin(amount: number, multiplier: number) {
 }
 
 // How far the target sits from the entry price, in "typical moves".
-// Chosen so the chance of winning is about 1 / (1 + multiplier), which keeps
-// every multiplier roughly fair: higher payout, lower chance.
-const Z_BY_MULTIPLIER: Record<string, number> = { "1": 0, "1.5": 0.2533, "2": 0.4307, "3": 0.6745, "4": 0.8416, "5": 0.9674 };
+// Chosen so the chance of winning is 1 / (1 + multiplier), which keeps every
+// multiplier fair: higher payout, lower chance. (1x = 50%, 2x = 1 in 3, 5x = 1 in 6.)
+// zFor(m) is the bell-curve point with that much chance above it.
+export function zFor(multiplier: number) {
+  return inverseNormal(multiplier / (1 + multiplier));
+}
+
+// Standard inverse normal (Acklam's approximation, accurate to ~1e-9).
+function inverseNormal(p: number): number {
+  const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239];
+  const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+  const c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+  const d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+  const lo = 0.02425;
+  if (p < lo) {
+    const q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  if (p > 1 - lo) return -inverseNormal(1 - p);
+  const q = p - 0.5, r = q * q;
+  return ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q) / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+}
 
 // sigmaPerMin = the market's typical 1-minute move (e.g. 0.0006 = 0.06%), measured from recent prices.
 export function targetPrices(entry: number, multiplier: number, sigmaPerMin: number, minutes: number) {
-  const z = Z_BY_MULTIPLIER[String(multiplier)] ?? 0;
-  const move = z * sigmaPerMin * Math.sqrt(minutes);
+  const move = zFor(multiplier) * sigmaPerMin * Math.sqrt(minutes);
   return { up: entry * (1 + move), down: entry * (1 - move) };
 }
 

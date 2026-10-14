@@ -16,7 +16,7 @@
 // (or spectator) loads it, using deterministic times and exchange prices.
 // =============================================================================
 import {
-  MULTIPLIERS, expiryFor, payoutIfWin, round2, settleOutcome, targetPrices, weekStart,
+  isValidMultiplier, expiryFor, payoutIfWin, round2, settleOutcome, targetPrices, weekStart,
   type Direction, type Market, type Trade,
 } from "./game";
 
@@ -294,7 +294,7 @@ export function publicDuel(d: Duel, viewer: Side | null): Duel {
 }
 
 export function validMultiplier(x: number, max: number) {
-  return MULTIPLIERS.includes(x) && x <= max;
+  return isValidMultiplier(x, max);
 }
 
 export const roundPayout = (multiplier: number) => payoutIfWin(ROUND_AMOUNT, multiplier);
