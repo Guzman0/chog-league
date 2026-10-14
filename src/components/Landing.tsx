@@ -1,6 +1,7 @@
 "use client";
 
-import { useAccount, useConnect } from "wagmi";
+import { useAccount } from "wagmi";
+import ConnectButton from "./ConnectButton";
 
 // A pile of real Chog art straight from the collection's IPFS folder
 // (loaded directly from the Pinata gateway, which is fast and cached).
@@ -20,7 +21,6 @@ const PILE = [
 
 export default function Landing({ onPractice, loading }: { onPractice: () => void; loading: boolean }) {
   const { isConnected } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
 
   return (
     <section className="pt-2 sm:pt-6">
@@ -56,9 +56,7 @@ export default function Landing({ onPractice, loading }: { onPractice: () => voi
             {loading ? "Finding a Chog…" : "🎲 Play with a random Chog"}
           </button>
           {!isConnected && (
-            <button type="button" onClick={() => connectors[0] && connect({ connector: connectors[0] })} disabled={isPending} className="btn btn-primary px-6 py-3.5 text-lg">
-              {isPending ? "Connecting…" : "Connect wallet"}
-            </button>
+            <ConnectButton className="btn btn-primary px-6 py-3.5 text-lg" onPractice={onPractice} />
           )}
         </div>
         <p className="mt-3 text-sm text-[var(--muted)]">No wallet needed to play practice. Chog holders connect to play the league.</p>
