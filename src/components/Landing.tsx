@@ -62,8 +62,9 @@ export default function Landing({ onPractice, loading }: { onPractice: () => voi
         <p className="mt-3 text-sm text-[var(--muted)]">No wallet needed to play practice. Chog holders connect to play the league.</p>
       </div>
 
-      <div className="mx-auto mt-12 grid max-w-4xl gap-5 sm:grid-cols-3">
+      <div className="mx-auto mt-12 grid max-w-5xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <Feature tilt="-1.5deg" title="Call it" emoji="📈">Higher or lower in 1 to 5 minutes. Bigger multiplier, bigger win, harder target.</Feature>
+        <Feature tilt="1.5deg" title="No two Chogs alike" emoji="🧬">Its traits give it a home market and a daily power: Shield, Double Up or Parachute. Same fair odds, different play.</Feature>
         <Feature tilt="1deg" title="Duel a Chog" emoji="⚔️">Challenge anyone online. You both stake the same amount and the winner takes the pot.</Feature>
         <Feature tilt="-1deg" title="Wear the crown" emoji="👑">Every Chog starts Monday with $1,000. Finish the week on top and your Chog wears the crown.</Feature>
       </div>

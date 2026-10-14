@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { CHOG_SUPPLY, type ChogData } from "@/lib/chog";
 import { monad } from "@/lib/wagmi";
+import { identityFor } from "@/lib/identity";
 import WalletButton from "@/components/WalletButton";
 import { fetchChog } from "@/components/MyChogs";
 import { ChogBar, ChogRecord } from "@/components/ChogCard";
@@ -76,6 +77,8 @@ export default function Home() {
     }
   }, [duels.active?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = duels.duels.find((d) => d.id === shownDuel);
+  // Home market + power, read from the Chog's own traits.
+  const identity = chog ? identityFor(chog.tokenId, chog.traits) : null;
   const duelMaxMult = shown?.mode === "league" ? league.stats?.summary.level.maxMultiplier ?? 1.5 : 5;
 
   async function load(id: string) {
@@ -143,6 +146,8 @@ export default function Home() {
         <div className="space-y-5">
           <ChogBar
             chog={chog}
+            identity={identity!}
+            powerUsed={active.stats?.summary.powerUsedToday}
             isMine={isMine}
             mode={mode}
             summary={active.stats?.summary}
@@ -180,6 +185,7 @@ export default function Home() {
                 key={`${chog.tokenId}-${mode}`}
                 practice={mode === "practice"}
                 tokenId={chog.tokenId}
+                identity={identity!}
                 summary={active.stats?.summary}
                 open={active.stats?.open ?? []}
                 history={active.stats?.history ?? []}
@@ -208,7 +214,7 @@ export default function Home() {
 
           {tab === "league" && (
             <div className="grid gap-6 lg:grid-cols-2">
-              <ChogRecord chog={chog} summary={league.stats?.summary} duelRecord={league.stats?.duels} />
+              <ChogRecord chog={chog} identity={identity!} summary={league.stats?.summary} duelRecord={league.stats?.duels} />
               <Leaderboard onSelect={select} refreshKey={boardKey} onLeader={setLeaderId} />
             </div>
           )}

@@ -15,6 +15,10 @@ Judging: Novelty 30%, Fun 20%, Retention 20%, Clarity 15%, Execution 15%, $CHOG 
   transfer when the NFT is sold.
 - The Chog reacts on its picture: bounce + confetti on wins, shake + grey on losses, 🔥/🥶 streaks,
   👑 crown for the weekly league #1.
+- Chog identity (`src/lib/identity.ts`, from its own traits): home market from Background colour
+  (+1x multiplier cap there) and one power from Eyes, once per UTC day: Shield (loss doesn't drop level),
+  Double Up (win counts 2 for level), Parachute (half stake back on loss, half profit on win).
+  All EV-neutral; level = sum of levelPoints(). Powers stored in trades.power (Supabase column). Not used in duels.
 - Practice mode: anyone, any Chog, no wallet; never counts toward records or the league.
 - Duels (`src/lib/duels.ts`): Quick/Bo3/Bo5 rounds (hidden picks, 20s window, $100-scored picks)
   and Arena 15m/1h/24h ($1,000 bankroll). Equal stakes from weekly/practice balance, winner takes all,

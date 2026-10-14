@@ -14,6 +14,8 @@
 // that balance, and it resets every Monday 00:00 UTC.
 // =============================================================================
 
+import type { PowerId } from "./identity";
+
 export const MARKETS = ["BTC", "ETH", "SOL", "MON"] as const;
 export type Market = (typeof MARKETS)[number];
 
@@ -87,6 +89,12 @@ export function levelFor(netWins: number) {
   return { ...current, next };
 }
 
+// 00:00 UTC of the day containing `ms` (Chog powers recharge then).
+export function dayStart(ms: number) {
+  const d = new Date(ms);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
 // Monday 00:00 UTC of the week containing `ms`.
 export function weekStart(ms: number) {
   const d = new Date(ms);
@@ -128,14 +136,30 @@ export type Trade = {
   // Set on trades made inside a duel (Arena). Duel trades don't count toward
   // the Chog's level or weekly balance; the duel stake does.
   duelId?: string;
+  // The Chog's once-a-day power, if it was used on this call (see identity.ts).
+  power?: PowerId;
 };
 
 export function settleOutcome(t: Trade, settlePrice: number): Pick<Trade, "status" | "settlePrice" | "payout" | "pnl"> {
   const hit = t.direction === "up" ? settlePrice > t.targetPrice : settlePrice < t.targetPrice;
   const exact = settlePrice === t.targetPrice;
   if (exact) return { status: "push", settlePrice, payout: t.amount, pnl: 0 };
-  const payout = hit ? payoutIfWin(t.amount, t.multiplier) : 0;
+  // Parachute: half the profit on a win, half the stake back on a loss (same odds, smaller swing).
+  const payout = hit ? winPayout(t.amount, t.multiplier, t.power) : t.power === "parachute" ? round2(t.amount / 2) : 0;
   return { status: hit ? "won" : "lost", settlePrice, payout, pnl: round2(payout - t.amount) };
+}
+
+// What a call pays back if it wins (Parachute halves the profit).
+export function winPayout(amount: number, multiplier: number, power?: PowerId) {
+  return power === "parachute" ? round2(amount + (amount * multiplier) / 2) : payoutIfWin(amount, multiplier);
+}
+
+// How much a settled call moves the Chog's level: +1 for a win, -1 for a loss,
+// changed by Shield (a loss counts 0) and Double Up (a win counts 2).
+export function levelPoints(t: Trade) {
+  if (t.status === "won") return t.power === "double" ? 2 : 1;
+  if (t.status === "lost") return t.power === "shield" ? 0 : -1;
+  return 0;
 }
 
 export type ChogSummary = {
@@ -156,6 +180,7 @@ export type ChogSummary = {
   lastResult: TradeStatus | null;
   streak: number; // positive = win streak, negative = loss streak
   duelDelta: number; // balance change from duels this week (stakes held or won/lost)
+  powerUsedToday: boolean; // the Chog's once-a-day power (recharges 00:00 UTC)
 };
 
 // The real record of a Chog (practiceId omitted), or one player's practice
@@ -171,6 +196,7 @@ export function summarize(tokenId: string, trades: Trade[], nowMs = Date.now(), 
   const wins = settled.filter((t) => t.status === "won").length;
   const losses = settled.filter((t) => t.status === "lost").length;
   const pushes = settled.filter((t) => t.status === "push").length;
+  const netWins = settled.reduce((n, t) => n + levelPoints(t), 0);
   const ws = weekStart(nowMs);
   const week = mine.filter((t) => t.openedAt >= ws);
   const weekPnl = round2(week.filter((t) => t.status !== "open").reduce((s, t) => s + (t.pnl || 0), 0));
@@ -190,11 +216,11 @@ export function summarize(tokenId: string, trades: Trade[], nowMs = Date.now(), 
     wins,
     losses,
     pushes,
-    netWins: wins - losses,
+    netWins,
     hitRate: wins + losses > 0 ? wins / (wins + losses) : null,
     totalTrades: mine.length,
     bestWin: settled.reduce((m, t) => Math.max(m, t.pnl || 0), 0),
-    level: levelFor(wins - losses),
+    level: levelFor(netWins),
     weekStart: ws,
     weekBalance: round2(WEEKLY_BALANCE + weekPnl - openStake + duelDelta),
     weekPnl,
@@ -203,6 +229,7 @@ export function summarize(tokenId: string, trades: Trade[], nowMs = Date.now(), 
     lastResult: settled.length ? settled[settled.length - 1].status : null,
     streak,
     duelDelta,
+    powerUsedToday: mine.some((t) => t.power && t.openedAt >= dayStart(nowMs)),
   };
 }
 

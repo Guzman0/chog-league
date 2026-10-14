@@ -2,6 +2,7 @@
 
 import type { ChogData } from "@/lib/chog";
 import type { ChogSummary, Trade } from "@/lib/game";
+import { POWERS, multiplierCap, type ChogIdentity } from "@/lib/identity";
 import { short } from "./WalletButton";
 import ChogAvatar, { useReaction } from "./ChogAvatar";
 
@@ -19,9 +20,11 @@ function mood(s: ChogSummary | undefined, crowned: boolean) {
 
 // Always-visible strip: the Chog (reacting), its level, mood and balance.
 export function ChogBar({
-  chog, isMine, mode, summary, lastSettled, crowned, onSwitch, onMode, leagueLocked,
+  chog, identity, powerUsed, isMine, mode, summary, lastSettled, crowned, onSwitch, onMode, leagueLocked,
 }: {
   chog: ChogData;
+  identity: ChogIdentity;
+  powerUsed?: boolean;
   isMine: boolean;
   mode: "league" | "practice";
   summary?: ChogSummary; // of the current mode
@@ -50,6 +53,15 @@ export function ChogBar({
         <p className="mt-2 inline-block rounded-xl border-2 border-[var(--ink)] bg-[var(--text)] px-3 py-1 text-sm font-extrabold text-[var(--ink)]">
           {m.face} {m.line}
         </p>
+        <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
+          <span className="rounded-lg border-2 border-[var(--ink)] bg-[var(--panel-2)] px-2 py-0.5" title={`From its ${identity.homeFrom}. +1x multiplier limit in this market.`}>
+            🏠 Home: {identity.home}
+          </span>
+          <span className="rounded-lg border-2 border-[var(--ink)] bg-[var(--panel-2)] px-2 py-0.5" title={`From its ${identity.powerFrom}. ${POWERS[identity.power].long} Once a day.`}>
+            {POWERS[identity.power].emoji} {POWERS[identity.power].name}
+            <span className={powerUsed ? "text-[var(--muted)]" : "text-[var(--green)]"}> {powerUsed === undefined ? "" : powerUsed ? "· used" : "· ready"}</span>
+          </span>
+        </div>
       </div>
       <div className="flex w-full flex-wrap items-end justify-between gap-3 sm:w-auto sm:flex-col sm:items-end">
         <div className="sm:text-right">
@@ -75,7 +87,7 @@ export function ChogBar({
 }
 
 // League tab: the Chog's permanent record (this is what a buyer gets).
-export function ChogRecord({ chog, summary, duelRecord }: { chog: ChogData; summary?: ChogSummary; duelRecord?: { wins: number; losses: number; draws: number } | null }) {
+export function ChogRecord({ chog, identity, summary, duelRecord }: { chog: ChogData; identity: ChogIdentity; summary?: ChogSummary; duelRecord?: { wins: number; losses: number; draws: number } | null }) {
   const lvl = summary?.level;
   const net = Math.max(0, summary?.netWins ?? 0);
   const toNext = lvl?.next ? lvl.next.netWins - net : 0;
@@ -90,18 +102,33 @@ export function ChogRecord({ chog, summary, duelRecord }: { chog: ChogData; summ
         <div className="panel-flat mb-4 p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="display text-2xl">Level {lvl.level} {lvl.title}</p>
-            <p className="text-sm font-extrabold">Multipliers up to {lvl.maxMultiplier}x</p>
+            <p className="text-sm font-extrabold">Multipliers up to {lvl.maxMultiplier}x ({multiplierCap(lvl.maxMultiplier, identity.home, identity.home)}x in {identity.home})</p>
           </div>
           <div className="my-2 h-4 overflow-hidden rounded-full border-2 border-[var(--ink)] bg-[var(--bg)]">
             <div className="h-full bg-[var(--banana)]" style={{ width: `${pct}%` }} />
           </div>
           <p className="text-xs text-[var(--muted)]">
             {lvl.next
-              ? `${toNext} more net win${toNext === 1 ? "" : "s"} to level ${lvl.next.level}, which unlocks ${lvl.next.maxMultiplier}x. Net wins are wins minus losses, so luck cancels out.`
+              ? `${toNext} more net win${toNext === 1 ? "" : "s"} to level ${lvl.next.level}, which unlocks ${lvl.next.maxMultiplier}x. Net wins are wins minus losses, so luck cancels out (Shield and Double Up bend this once a day).`
               : "Max level. This Chog is a proven trader."}
           </p>
         </div>
       )}
+
+      <div className="panel-flat mb-4 p-4">
+        <p className="label">Born with</p>
+        <p className="mb-3 text-xs text-[var(--muted)]">Every Chog plays a little differently, read from its own traits. None of it changes the odds, so rare Chogs don&apos;t win automatically.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <p className="font-black">🏠 Home market: {identity.home}</p>
+            <p className="text-xs text-[var(--muted)]">From its {identity.homeFrom}. Up to +1x above its level limit when trading {identity.home}.</p>
+          </div>
+          <div>
+            <p className="font-black">{POWERS[identity.power].emoji} Power: {POWERS[identity.power].name}</p>
+            <p className="text-xs text-[var(--muted)]">From its {identity.powerFrom}. {POWERS[identity.power].long} Once a day, recharges 00:00 UTC.</p>
+          </div>
+        </div>
+      </div>
 
       {summary && (
         <dl className="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">

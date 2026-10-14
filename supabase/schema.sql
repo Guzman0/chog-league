@@ -22,6 +22,9 @@ create table if not exists public.trades (
   pnl numeric,
   created_at timestamptz not null default now()
 );
+-- Added for Chog powers (Shield / Double Up / Parachute). Safe to run again.
+alter table public.trades add column if not exists power text;
+
 create index if not exists trades_token_idx on public.trades (token_id);
 create index if not exists trades_opened_idx on public.trades (opened_at);
 create index if not exists trades_open_idx on public.trades (expires_at) where status = 'open';

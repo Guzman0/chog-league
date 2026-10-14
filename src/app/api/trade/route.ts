@@ -19,6 +19,8 @@ import { settleDue } from "@/lib/settle";
 import { insertTrade } from "@/lib/store";
 import { chogSummary } from "@/lib/records";
 import { CHOG_SUPPLY } from "@/lib/chog";
+import { POWERS, identityFor, multiplierCap, type ChogIdentity } from "@/lib/identity";
+import { chogTraits } from "@/lib/meta";
 import { PRACTICE_COOKIE, getPracticeId, newPracticeId, practiceCookieOptions } from "@/lib/practice";
 
 function bad(error: string, status = 400) {
@@ -34,6 +36,7 @@ export async function POST(req: Request) {
   const minutes = Number(b.minutes);
   const amount = Number(b.amount);
   const multiplier = Number(b.multiplier);
+  const usePower = b.usePower === true;
 
   if (!/^\d+$/.test(tokenId) || Number(tokenId) > CHOG_SUPPLY) return bad("Pick a Chog");
   if (!MARKETS.includes(market)) return bad("Unknown market");
@@ -77,8 +80,21 @@ export async function POST(req: Request) {
 
   try {
     const { summary: s } = await chogSummary(tokenId, practiceId ?? null, now);
-    if (!practice && multiplier > s.level.maxMultiplier) {
-      throw new Error(`Level ${s.level.level} Chogs can use up to ${s.level.maxMultiplier}x. Level up to unlock more.`);
+    const levelMax = practice ? MAX_MULTIPLIER : s.level.maxMultiplier;
+
+    // The Chog's identity (home market + power) comes from its traits. Only
+    // loaded when it matters: above the level cap, or when using the power.
+    let identity: ChogIdentity | null = null;
+    if (usePower || multiplier > levelMax) {
+      const traits = await chogTraits(tokenId).catch(() => null);
+      if (!traits) throw new Error("Couldn't read this Chog's traits right now, try again");
+      identity = identityFor(tokenId, traits);
+    }
+    if (multiplier > levelMax && multiplier > multiplierCap(levelMax, market, identity!.home)) {
+      throw new Error(`Level ${s.level.level} Chogs can use up to ${levelMax}x (${multiplierCap(levelMax, identity!.home, identity!.home)}x in their home market, ${identity!.home}). Level up to unlock more.`);
+    }
+    if (usePower && s.powerUsedToday) {
+      throw new Error(`${POWERS[identity!.power].name} is already used today. It recharges at 00:00 UTC.`);
     }
     if (s.openTrades >= MAX_OPEN_TRADES) throw new Error(`Max ${MAX_OPEN_TRADES} open trades at once`);
     if (s.weekBalance < amount) {
@@ -98,6 +114,7 @@ export async function POST(req: Request) {
       expiresAt: expiryFor(now, minutes),
       status: "open",
       ...(practiceId ? { practiceId } : {}),
+      ...(usePower && identity ? { power: identity.power } : {}),
     };
     await insertTrade(trade);
     const res = NextResponse.json({ trade });

@@ -6,6 +6,7 @@ import path from "path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Trade } from "./game";
 import type { Duel, DuelStatus } from "./duels";
+import { isPowerId } from "./identity";
 
 export type TradeFilter = {
   tokenId?: string;
@@ -35,6 +36,7 @@ type Row = {
   id: string; token_id: string; wallet: string; practice_id: string | null; duel_id: string | null;
   market: string; direction: string; amount: number; multiplier: number; entry_price: number; target_price: number;
   opened_at: number; expires_at: number; status: string; settle_price: number | null; payout: number | null; pnl: number | null;
+  power?: string | null;
 };
 
 function toRow(t: Trade): Row {
@@ -43,6 +45,8 @@ function toRow(t: Trade): Row {
     market: t.market, direction: t.direction, amount: t.amount, multiplier: t.multiplier,
     entry_price: t.entryPrice, target_price: t.targetPrice, opened_at: t.openedAt, expires_at: t.expiresAt,
     status: t.status, settle_price: t.settlePrice ?? null, payout: t.payout ?? null, pnl: t.pnl ?? null,
+    // Only sent when used, so databases without the "power" column still accept normal trades.
+    ...(t.power ? { power: t.power } : {}),
   };
 }
 
@@ -57,6 +61,7 @@ function fromRow(r: Row): Trade {
   if (r.settle_price !== null) t.settlePrice = Number(r.settle_price);
   if (r.payout !== null) t.payout = Number(r.payout);
   if (r.pnl !== null) t.pnl = Number(r.pnl);
+  if (r.power && isPowerId(r.power)) t.power = r.power;
   return t;
 }
 
@@ -133,6 +138,9 @@ export async function listTrades(f: TradeFilter = {}): Promise<Trade[]> {
 export async function insertTrade(t: Trade): Promise<void> {
   if (usingSupabase) {
     const { error } = await supabase().from("trades").insert(toRow(t));
+    if (error && t.power && /power/i.test(error.message)) {
+      throw new Error("Chog powers need a one-time database update (see supabase/schema.sql). Trade without the power for now.");
+    }
     if (error) throw new Error(`Database error: ${error.message}`);
     return;
   }

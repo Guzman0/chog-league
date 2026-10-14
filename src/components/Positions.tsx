@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatPrice, payoutIfWin, type Trade } from "@/lib/game";
+import { formatPrice, winPayout, type Trade } from "@/lib/game";
+import { POWERS } from "@/lib/identity";
+
+// A small tag when the Chog's power was used on a call.
+function PowerTag({ t }: { t: Trade }) {
+  if (!t.power) return null;
+  const p = POWERS[t.power];
+  return <span className="ml-1 rounded-md border-2 border-[var(--ink)] bg-[var(--sky)] px-1 text-[11px] font-black text-[var(--ink)]" title={p.long}>{p.emoji} {p.name}</span>;
+}
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now());
@@ -35,8 +43,9 @@ export default function Positions({ open, history, practice = false }: { open: T
                 <span>
                   <b className={t.direction === "up" ? "text-[var(--green)]" : "text-[var(--red)]"}>{t.direction === "up" ? "▲" : "▼"} {t.market}</b>{" "}
                   ${t.amount} at {t.multiplier}x, needs {t.direction === "up" ? "above" : "below"} ${formatPrice(t.targetPrice)}
+                  <PowerTag t={t} />
                 </span>
-                <span className="num font-black">{countdown(t.expiresAt - now)} <span className="text-[var(--muted)]">for ${payoutIfWin(t.amount, t.multiplier)}</span></span>
+                <span className="num font-black">{countdown(t.expiresAt - now)} <span className="text-[var(--muted)]">for ${winPayout(t.amount, t.multiplier, t.power)}</span></span>
               </li>
             ))}
           </ul>
@@ -50,9 +59,10 @@ export default function Positions({ open, history, practice = false }: { open: T
               <li key={t.id} className="panel-flat flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
                 <span>
                   {t.direction === "up" ? "▲" : "▼"} {t.market} ${t.amount} at {t.multiplier}x: target ${formatPrice(t.targetPrice)}, closed ${formatPrice(t.settlePrice ?? 0)}
+                  <PowerTag t={t} />
                 </span>
                 <span className={`font-black ${t.status === "won" ? "text-[var(--green)]" : t.status === "lost" ? "text-[var(--red)]" : "text-[var(--muted)]"}`}>
-                  {t.status === "won" ? `Won +$${t.pnl}` : t.status === "lost" ? `Lost $${t.amount}` : "Push, refunded"}
+                  {t.status === "won" ? `Won +$${t.pnl}` : t.status === "lost" ? `Lost $${Math.abs(t.pnl ?? t.amount)}` : "Push, refunded"}
                 </span>
               </li>
             ))}
