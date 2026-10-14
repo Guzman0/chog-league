@@ -10,7 +10,7 @@ export type ChartLine = { price: number; label: string; color: string; dashed?: 
 export default function PriceChart({ ticks, lines = [], height = 220 }: { ticks: Tick[]; lines?: ChartLine[]; height?: number }) {
   const W = 600;
   const H = height;
-  const padR = 8, padL = 8, padT = 14, padB = 14;
+  const padR = 10, padL = 8, padT = 26, padB = 18;
 
   if (ticks.length < 2) {
     return (

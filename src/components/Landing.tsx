@@ -2,9 +2,10 @@
 
 import { useAccount, useConnect } from "wagmi";
 
-// A pile of real Chog art straight from the collection's IPFS folder.
+// A pile of real Chog art straight from the collection's IPFS folder
+// (loaded directly from the Pinata gateway, which is fast and cached).
 const ART_CID = "bafybeihau2egcccbdxymeckmmbrqytbfor5gkt3en6d5fsbueymdbq7g6e";
-const art = (n: number) => `/api/img?u=${encodeURIComponent(`ipfs://${ART_CID}/${n}.webp`)}`;
+const art = (n: number) => `https://gateway.pinata.cloud/ipfs/${ART_CID}/${n}.webp`;
 
 const PILE = [
   { n: 1462, left: "2%", top: 40, w: 150, r: "-9deg", z: 2 },
