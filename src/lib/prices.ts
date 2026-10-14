@@ -39,7 +39,10 @@ export async function getSettlementPrice(market: Market, expiryMs: number): Prom
   const cached = settleCache.get(key);
   if (cached !== undefined) return cached;
   const bucket = Math.floor(expiryMs / 1000) - 60; // candle covering the last minute before expiry
-  const list = await candles(market, bucket - 300, bucket);
+  // End the range at "now" (not at the bucket): Coinbase's CDN caches identical
+  // URLs for 5 minutes, so a fixed URL keeps returning a list from before the
+  // candle existed. A fresh end time makes every check a new request.
+  const list = await candles(market, bucket - 300, Math.max(bucket + 60, Math.floor(Date.now() / 1000)));
   const exact = list.find((c) => c[0] === bucket);
   // A minute with zero trades has no candle; fall back to the latest earlier close.
   const earlier = list.filter((c) => c[0] < bucket).sort((a, b) => b[0] - a[0])[0];
