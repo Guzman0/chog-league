@@ -20,11 +20,12 @@ function mood(s: ChogSummary | undefined, crowned: boolean) {
 
 // Always-visible strip: the Chog (reacting), its level, mood and balance.
 export function ChogBar({
-  chog, identity, powerUsed, isMine, mode, summary, lastSettled, crowned, onSwitch, onMode, leagueLocked,
+  chog, identity, powerUsed, crowns = 0, isMine, mode, summary, lastSettled, crowned, onSwitch, onMode, leagueLocked,
 }: {
   chog: ChogData;
   identity: ChogIdentity;
   powerUsed?: boolean;
+  crowns?: number;
   isMine: boolean;
   mode: "league" | "practice";
   summary?: ChogSummary; // of the current mode
@@ -54,6 +55,19 @@ export function ChogBar({
           {m.face} {m.line}
         </p>
         <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
+          {crowns > 0 && (
+            <span className="rounded-lg border-2 border-[var(--ink)] bg-[var(--banana)] px-2 py-0.5 text-[var(--ink)]" title="Weeks this Chog finished #1 in the league">
+              👑 Champion{crowns > 1 ? ` ×${crowns}` : ""}
+            </span>
+          )}
+          {summary && (
+            <span
+              className={`rounded-lg border-2 border-[var(--ink)] px-2 py-0.5 ${summary.dayStreak > 0 && !summary.playedToday ? "bg-[var(--pink)] text-[var(--ink)]" : "bg-[var(--panel-2)]"}`}
+              title="Days in a row with at least one call (UTC days)"
+            >
+              📅 {summary.dayStreak > 0 ? `${summary.dayStreak}-day streak${summary.playedToday ? "" : " · call today to keep it"}` : "Start a daily streak"}
+            </span>
+          )}
           <span className="rounded-lg border-2 border-[var(--ink)] bg-[var(--panel-2)] px-2 py-0.5" title={`From its ${identity.homeFrom}. +1x multiplier limit in this market.`}>
             🏠 Home: {identity.home}
           </span>
@@ -87,7 +101,7 @@ export function ChogBar({
 }
 
 // League tab: the Chog's permanent record (this is what a buyer gets).
-export function ChogRecord({ chog, identity, summary, duelRecord }: { chog: ChogData; identity: ChogIdentity; summary?: ChogSummary; duelRecord?: { wins: number; losses: number; draws: number } | null }) {
+export function ChogRecord({ chog, identity, crowns = 0, summary, duelRecord }: { chog: ChogData; identity: ChogIdentity; crowns?: number; summary?: ChogSummary; duelRecord?: { wins: number; losses: number; draws: number } | null }) {
   const lvl = summary?.level;
   const net = Math.max(0, summary?.netWins ?? 0);
   const toNext = lvl?.next ? lvl.next.netWins - net : 0;
@@ -136,6 +150,8 @@ export function ChogRecord({ chog, identity, summary, duelRecord }: { chog: Chog
           <Stat label="Calls" value={`${summary.wins} won, ${summary.losses} lost`} />
           <Stat label="Hit rate" value={summary.hitRate === null ? "–" : `${Math.round(summary.hitRate * 100)}%`} />
           <Stat label="Duels" value={duelRecord ? `${duelRecord.wins} won, ${duelRecord.losses} lost` : "–"} />
+          <Stat label="Weekly crowns" value={crowns > 0 ? `👑 ${crowns}` : "None yet"} />
+          <Stat label="Daily streak" value={summary.dayStreak > 0 ? `📅 ${summary.dayStreak} day${summary.dayStreak === 1 ? "" : "s"}` : "–"} />
         </dl>
       )}
 

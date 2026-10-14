@@ -19,6 +19,10 @@ Judging: Novelty 30%, Fun 20%, Retention 20%, Clarity 15%, Execution 15%, $CHOG 
   (+1x multiplier cap there) and one power from Eyes, once per UTC day: Shield (loss doesn't drop level),
   Double Up (win counts 2 for level), Parachute (half stake back on loss, half profit on win).
   All EV-neutral; level = sum of levelPoints(). Powers stored in trades.power (Supabase column). Not used in duels.
+- League extras: live reset countdown, Hall of Champions (`/api/champions`, #1 of each finished week,
+  cached 5 min), 👑×N crowns on the Chog, daily play streak (dayStreak in summarize).
+- Local testing without network: `CHOG_FAKE_PRICES=1` makes up prices (ignored on Vercel).
+- `src/middleware.ts` sets the practice cookie on first page load (prevents duplicate practice IDs).
 - Practice mode: anyone, any Chog, no wallet; never counts toward records or the league.
 - Duels (`src/lib/duels.ts`): Quick/Bo3/Bo5 rounds (hidden picks, 20s window, $100-scored picks)
   and Arena 15m/1h/24h ($1,000 bankroll). Equal stakes from weekly/practice balance, winner takes all,

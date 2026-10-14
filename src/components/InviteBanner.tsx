@@ -1,5 +1,7 @@
 "use client";
 
+import { Demo } from "./ui";
+
 import { useEffect, useState } from "react";
 import { FORMATS } from "@/lib/duels";
 import type { ChogData } from "@/lib/chog";
@@ -51,7 +53,7 @@ export default function InviteBanner({ invites, onChanged }: { invites: MyDuel[]
         <div className="flex-1 text-sm">
           <p className="display text-xl">⚔️ {from?.name ?? "A Chog"} challenges you!</p>
           <p className="text-[var(--muted)]">
-            {FORMATS[d.format].label}{FORMATS[d.format].kind === "rounds" ? ` on ${d.market}` : ""}, ${d.stake} each, winner takes ${d.stake * 2}
+            {FORMATS[d.format].label}{FORMATS[d.format].kind === "rounds" ? ` on ${d.market}` : ""}: ${d.stake} each, winner takes ${d.stake * 2} <Demo />
           </p>
           <p className="text-xs font-extrabold text-[var(--muted)]">{d.mode === "league" ? "League duel" : "Practice duel"}, {left}s to answer</p>
         </div>

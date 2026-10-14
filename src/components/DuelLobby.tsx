@@ -77,7 +77,7 @@ export default function DuelLobby({
       <section className="panel">
         <h3 className="mb-1 text-2xl">Set up a duel</h3>
         <p className="mb-4 text-sm text-[var(--muted)]">
-          You both stake the same amount{mode === "league" ? " from your league balance" : " of practice money"}. Winner takes the pot.
+          You both put in the same stake{mode === "league" ? " from your weekly league balance" : " from your practice balance"}, and the winner takes both. It&apos;s all demo money: no real funds, ever.
         </p>
 
         <Field label="Format">
@@ -99,7 +99,7 @@ export default function DuelLobby({
           </Field>
         )}
 
-        <Field label={`Stake each (up to half your $${balance.toLocaleString()})`}>
+        <Field label={`Stake each, in demo money (up to half your $${balance.toLocaleString()})`}>
           {STAKES.map((s) => (
             <Pill key={s} on={s === stake} onClick={() => setStake(s)} disabled={s > maxStake}>${s}</Pill>
           ))}
@@ -112,7 +112,7 @@ export default function DuelLobby({
             disabled={busy || !botFormat || stake > maxStake}
             className="btn btn-banana mt-2 w-full py-3 text-lg"
           >
-            {botFormat ? `🤖 Duel the bot for $${stake * 2}` : "The bot only plays round formats"}
+            {botFormat ? `🤖 Duel the bot for a $${stake * 2} demo pot` : "The bot only plays round formats"}
           </button>
         )}
         {msg && <p className={`mt-3 text-sm font-extrabold ${msg.ok ? "text-[var(--green)]" : "text-[var(--red)]"}`}>{msg.text}</p>}

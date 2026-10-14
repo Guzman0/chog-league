@@ -10,7 +10,7 @@ import PriceChart, { type ChartLine } from "./PriceChart";
 import { fetchChog } from "./MyChogs";
 import { duelAction } from "./useDuels";
 import { usePriceStream, type Tick } from "./usePriceStream";
-import { CustomNumber, Field, Pill } from "./ui";
+import { CustomNumber, Demo, Field, Pill } from "./ui";
 
 type ArenaSide = { balance: number; open: number; trades: number };
 type View = {
@@ -133,8 +133,28 @@ export default function DuelScreen({ duelId, maxMultiplier, onClose }: { duelId:
     <section className="panel">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-2xl">⚔️ {f.label}{f.kind === "rounds" ? ` on ${d.market}` : ""}</h3>
-        <p className="text-sm font-extrabold text-[var(--muted)]">Pot ${d.stake * 2}, {d.mode === "league" ? "league duel" : "practice duel"}</p>
+        <p className="text-sm font-extrabold text-[var(--muted)]">Pot ${d.stake * 2} <Demo /> · {d.mode === "league" ? "league duel" : "practice duel"}</p>
       </div>
+
+      {!done && (
+        <details className="mb-4 rounded-xl border-2 border-[var(--ink)] bg-[var(--panel-2)] px-4 py-2 text-sm" open={f.kind === "rounds" ? d.rounds.length <= 1 : true}>
+          <summary className="cursor-pointer font-extrabold">How this duel works</summary>
+          {f.kind === "rounds" ? (
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-[var(--muted)]">
+              <li>You both have 20 seconds to call Higher or Lower on {d.market} and pick a multiplier. Picks stay hidden.</li>
+              <li>When time&apos;s up the picks are revealed and the round runs for 1 minute.</li>
+              <li>Each call is scored as a $100 trade. The bigger profit takes the round. No pick counts as a loss.</li>
+              <li>First to {f.toWin} round{f.toWin === 1 ? "" : "s"} wins the ${d.stake * 2} pot. Both stakes are demo money.</li>
+            </ol>
+          ) : (
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-[var(--muted)]">
+              <li>You both start with $1,000 of arena money, separate from your weekly balance.</li>
+              <li>Make as many calls as you like until the clock runs out.</li>
+              <li>The bigger arena balance at the end wins the ${d.stake * 2} pot. Both stakes are demo money.</li>
+            </ol>
+          )}
+        </details>
+      )}
 
       {/* Face-off */}
       <div className="mb-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -157,6 +177,11 @@ export default function DuelScreen({ duelId, maxMultiplier, onClose }: { duelId:
       {done && (
         <div className={`mb-4 rounded-2xl border-[3px] border-[var(--ink)] p-5 text-center text-[var(--ink)] ${iWon ? "bg-[var(--green)]" : draw ? "bg-[var(--muted)]" : "bg-[var(--red)]"}`}>
           <p className="display text-4xl">{iWon ? `You won $${d.stake * 2}!` : draw ? "Draw. Stakes returned." : `You lost $${d.stake}`}</p>
+          {!draw && (
+            <p className="text-xs font-extrabold">
+              Demo money, {iWon ? "added to" : "taken from"} your {d.mode === "league" ? "weekly league" : "practice"} balance.
+            </p>
+          )}
           {d.result?.reason && <p className="text-sm font-extrabold">{d.result.reason}</p>}
           <button type="button" onClick={onClose} className="btn btn-ghost mt-3 px-5 py-2">Back to the lobby</button>
         </div>

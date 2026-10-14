@@ -9,7 +9,7 @@ import WalletButton from "@/components/WalletButton";
 import { fetchChog } from "@/components/MyChogs";
 import { ChogBar, ChogRecord } from "@/components/ChogCard";
 import TradePanel from "@/components/TradePanel";
-import Leaderboard from "@/components/Leaderboard";
+import Leaderboard, { crownsFor, useChampions } from "@/components/Leaderboard";
 import Landing from "@/components/Landing";
 import ChogPicker from "@/components/ChogPicker";
 import DuelLobby from "@/components/DuelLobby";
@@ -34,6 +34,7 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("trade");
   const [leaderId, setLeaderId] = useState<string | null>(null);
   const [picker, setPicker] = useState(false);
+  const champions = useChampions();
 
   const isMine = !!(chog && address && chog.owner.toLowerCase() === address.toLowerCase());
   const onMonad = isConnected && chainId === monad.id;
@@ -139,7 +140,7 @@ export default function Home() {
           <Landing onPractice={() => load(String(1 + Math.floor(Math.random() * CHOG_SUPPLY)))} loading={loading} />
           {err && <p className="text-center text-sm font-extrabold text-[var(--red)]">{err}</p>}
           <div className="mx-auto max-w-2xl">
-            <Leaderboard onSelect={select} refreshKey={boardKey} />
+            <Leaderboard onSelect={select} refreshKey={boardKey} champions={champions} />
           </div>
         </div>
       ) : (
@@ -148,6 +149,7 @@ export default function Home() {
             chog={chog}
             identity={identity!}
             powerUsed={active.stats?.summary.powerUsedToday}
+            crowns={crownsFor(champions, chog.tokenId)}
             isMine={isMine}
             mode={mode}
             summary={active.stats?.summary}
@@ -214,8 +216,8 @@ export default function Home() {
 
           {tab === "league" && (
             <div className="grid gap-6 lg:grid-cols-2">
-              <ChogRecord chog={chog} identity={identity!} summary={league.stats?.summary} duelRecord={league.stats?.duels} />
-              <Leaderboard onSelect={select} refreshKey={boardKey} onLeader={setLeaderId} />
+              <ChogRecord chog={chog} identity={identity!} crowns={crownsFor(champions, chog.tokenId)} summary={league.stats?.summary} duelRecord={league.stats?.duels} />
+              <Leaderboard onSelect={select} refreshKey={boardKey} onLeader={setLeaderId} champions={champions} />
             </div>
           )}
         </div>

@@ -35,6 +35,8 @@ export function isValidMultiplier(x: number, max = MAX_MULTIPLIER) {
   return Number.isFinite(x) && x >= MIN_MULTIPLIER && x <= max && Math.abs(x * 10 - Math.round(x * 10)) < 1e-9;
 }
 export const WEEKLY_BALANCE = 1000;
+export const WEEK_MS = 7 * 86400000;
+export const DAY_MS = 86400000;
 export const MAX_OPEN_TRADES = 5;
 
 // Level thresholds: net wins (wins minus losses) needed, and the biggest multiplier unlocked.
@@ -181,6 +183,8 @@ export type ChogSummary = {
   streak: number; // positive = win streak, negative = loss streak
   duelDelta: number; // balance change from duels this week (stakes held or won/lost)
   powerUsedToday: boolean; // the Chog's once-a-day power (recharges 00:00 UTC)
+  dayStreak: number; // days in a row with at least one call
+  playedToday: boolean;
 };
 
 // The real record of a Chog (practiceId omitted), or one player's practice
@@ -198,7 +202,14 @@ export function summarize(tokenId: string, trades: Trade[], nowMs = Date.now(), 
   const pushes = settled.filter((t) => t.status === "push").length;
   const netWins = settled.reduce((n, t) => n + levelPoints(t), 0);
   const ws = weekStart(nowMs);
-  const week = mine.filter((t) => t.openedAt >= ws);
+  const week = mine.filter((t) => t.openedAt >= ws && t.openedAt < ws + WEEK_MS);
+
+  // Daily streak: days in a row (UTC) with at least one call. Still alive if
+  // the last call was yesterday, so you have all of today to keep it going.
+  const today = dayStart(nowMs);
+  const days = new Set(mine.filter((t) => t.openedAt <= nowMs).map((t) => dayStart(t.openedAt)));
+  let dayStreak = 0;
+  for (let d = days.has(today) ? today : today - DAY_MS; days.has(d); d -= DAY_MS) dayStreak++;
   const weekPnl = round2(week.filter((t) => t.status !== "open").reduce((s, t) => s + (t.pnl || 0), 0));
   const openStake = week.filter((t) => t.status === "open").reduce((s, t) => s + t.amount, 0);
 
@@ -230,6 +241,8 @@ export function summarize(tokenId: string, trades: Trade[], nowMs = Date.now(), 
     streak,
     duelDelta,
     powerUsedToday: mine.some((t) => t.power && t.openedAt >= dayStart(nowMs)),
+    dayStreak,
+    playedToday: days.has(today),
   };
 }
 

@@ -16,7 +16,7 @@
 // (or spectator) loads it, using deterministic times and exchange prices.
 // =============================================================================
 import {
-  isValidMultiplier, expiryFor, payoutIfWin, round2, settleOutcome, targetPrices, weekStart,
+  WEEK_MS, isValidMultiplier, expiryFor, payoutIfWin, round2, settleOutcome, targetPrices, weekStart,
   type Direction, type Market, type Trade,
 } from "./game";
 
@@ -117,7 +117,7 @@ export function duelBalanceDelta(tokenId: string, duels: Duel[], nowMs: number, 
   const ws = weekStart(nowMs);
   let delta = 0;
   for (const d of duels) {
-    if (!d.acceptedAt || d.acceptedAt < ws) continue;
+    if (!d.acceptedAt || d.acceptedAt < ws || d.acceptedAt >= ws + WEEK_MS) continue;
     if (d.status !== "active" && d.status !== "done") continue;
     let side: Side | null = null;
     if (practiceId) {

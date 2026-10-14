@@ -55,10 +55,11 @@ function NoWalletSheet({ open, onClose, onPractice }: { open: boolean; onClose: 
   const ref = useRef<HTMLDialogElement>(null);
   const [copied, setCopied] = useState(false);
   const [url, setUrl] = useState("https://chog-league.vercel.app/");
-  const phone = isPhone();
+  const [phone, setPhone] = useState(false); // decided in the browser, so the first render matches the server
 
   useEffect(() => {
     setUrl(window.location.href);
+    setPhone(isPhone());
     const d = ref.current;
     if (!d) return;
     if (open && !d.open) d.showModal();

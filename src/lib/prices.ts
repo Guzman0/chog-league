@@ -14,9 +14,20 @@ async function getJson<T>(path: string): Promise<T> {
   return res.json();
 }
 
+// TEST ONLY: made-up prices for local testing when Coinbase can't be reached.
+// Turned on with CHOG_FAKE_PRICES=1 and never on Vercel. The price is a fixed
+// wave over time, so entry and settlement always agree.
+const FAKE = process.env.CHOG_FAKE_PRICES === "1" && !process.env.VERCEL;
+const FAKE_BASE: Record<Market, number> = { BTC: 67000, ETH: 2600, SOL: 150, MON: 0.04 };
+function fakePrice(market: Market, ms: number) {
+  const t = ms / 1000;
+  return FAKE_BASE[market] * (1 + 0.002 * Math.sin(t / 37) + 0.0012 * Math.sin(t / 7.3) + 0.0007 * Math.sin(t / 2.1));
+}
+
 const spotCache = new Map<Market, { at: number; price: number }>();
 
 export async function getSpot(market: Market): Promise<number> {
+  if (FAKE) return fakePrice(market, Date.now());
   const hit = spotCache.get(market);
   if (hit && Date.now() - hit.at < 1000) return hit.price;
   const t = await getJson<{ price: string }>(`/products/${PRODUCT[market]}/ticker`);
@@ -35,6 +46,7 @@ async function candles(market: Market, startSec: number, endSec: number): Promis
 // Returns null if the exchange hasn't published that candle yet (try again shortly).
 const settleCache = new Map<string, number>();
 export async function getSettlementPrice(market: Market, expiryMs: number): Promise<number | null> {
+  if (FAKE) return Date.now() >= expiryMs + 2000 ? fakePrice(market, expiryMs) : null;
   const key = `${market}:${expiryMs}`;
   const cached = settleCache.get(key);
   if (cached !== undefined) return cached;
@@ -54,6 +66,7 @@ export async function getSettlementPrice(market: Market, expiryMs: number): Prom
 // Typical 1-minute move, from the last ~30 one-minute candles (standard deviation of returns).
 const volCache = new Map<Market, { at: number; sigma: number }>();
 export async function getVolatility(market: Market): Promise<number> {
+  if (FAKE) return 0.0015;
   const hit = volCache.get(market);
   if (hit && Date.now() - hit.at < 60000) return hit.sigma;
   const now = Math.floor(Date.now() / 1000);
