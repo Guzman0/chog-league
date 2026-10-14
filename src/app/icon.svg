@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Chog League tab icon: a banana sticker with an ink crown -->
+  <rect x="6" y="7" width="54" height="54" rx="14" fill="#120a2b"/>
+  <rect x="3" y="3" width="54" height="54" rx="14" fill="#ffd84d" stroke="#120a2b" stroke-width="4"/>
+  <path d="M13 41 L16 19 L24 29 L30 15 L36 29 L44 19 L47 41 Z" fill="#8b74ff" stroke="#120a2b" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="13" y="40" width="34" height="7" rx="2.5" fill="#8b74ff" stroke="#120a2b" stroke-width="4"/>
+  <circle cx="30" cy="14" r="3.2" fill="#ff7ac6" stroke="#120a2b" stroke-width="2.5"/>
+</svg>

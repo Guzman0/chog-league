@@ -2,9 +2,14 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "./providers";
 
+const description = "Call higher or lower with your Chog, level it up, and duel other holders. Live prices, demo money.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://chog-league.vercel.app"),
   title: "Chog League",
-  description: "Call HIGHER or LOWER with your Chog, level it up, and duel other holders. Demo money, live prices.",
+  description,
+  openGraph: { title: "Chog League", description, url: "https://chog-league.vercel.app", siteName: "Chog League", type: "website" },
+  twitter: { card: "summary_large_image", title: "Chog League", description },
 };
 
 export const viewport: Viewport = { themeColor: "#24124F" };
