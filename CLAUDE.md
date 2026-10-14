@@ -12,7 +12,13 @@ Judging: Novelty 30%, Fun 20%, Retention 20%, Clarity 15%, Execution 15%, $CHOG 
 - Weekly league: every Chog starts each week (Monday 00:00 UTC) with $1,000 demo; ranked by balance.
 - Everything is stored against the Chog's **token ID, never the wallet**, so level and record
   transfer when the NFT is sold.
-- The Chog "reacts" (mood line on its card) to wins, losses and streaks.
+- The Chog reacts on its picture: bounce + confetti on wins, shake + grey on losses, 🔥/🥶 streaks,
+  👑 crown for the weekly league #1.
+- Practice mode: anyone, any Chog, no wallet; never counts toward records or the league.
+- Duels (`src/lib/duels.ts`): Quick/Bo3/Bo5 rounds (hidden picks, 20s window, $100-scored picks)
+  and Arena 15m/1h/24h ($1,000 bankroll). Equal stakes from weekly/practice balance, winner takes all,
+  max stake = half balance, max 3 league duels/week per pair, bot duels practice-only.
+  Lobby = `presence` table. Duels advance lazily on read with a version check.
 
 ## The builder
 Guzman is new to coding. Explain changes in plain words, keep steps small, and give
@@ -24,13 +30,17 @@ exact Windows / VS Code terminal commands when he needs to run something.
 - Chog Genesis NFT: 0xc96d31F8626c6D03Fae5dCD3d61e3FB9F4a73763 · $CHOG: 0x350035555E10d9AfAF1566AaebfCeD5BA6C27777
 - Prices: Coinbase public API (server-side only). Entry = ticker; settlement = close of the
   1-minute candle ending at expiry (trades expire on whole minutes). Pyth Hermes now needs a key.
-- Storage: `data/chog-league.json` via `src/lib/store.ts` (local only). Swap for Supabase before deploying.
+- Storage: Supabase (tables in `supabase/schema.sql`) when SUPABASE_URL + SUPABASE_SECRET_KEY are set;
+  otherwise a local file `data/chog-league.json`. Same functions either way (`src/lib/store.ts`).
+- Live at https://chog-league.vercel.app (Vercel redeploys on every push to main).
+- Coinbase's CDN caches identical candle URLs for 5 min: always end candle ranges at "now".
 - Sign-in: wallet signs a message → HMAC cookie (`src/lib/session.ts`). Set SESSION_SECRET in production.
 
 ## Where things live
 - Rules and numbers: `src/lib/game.ts`
 - Prices: `src/lib/prices.ts` · settlement: `src/lib/settle.ts`
-- APIs: `/api/trade`, `/api/chog/[id]/stats`, `/api/leaderboard`, `/api/price`, `/api/auth`
+- APIs: `/api/trade`, `/api/chog/[id]/stats`, `/api/leaderboard`, `/api/price`, `/api/auth`,
+  `/api/duels`, `/api/duels/[id]`, `/api/presence`
 - UI: `src/components/*`, page in `src/app/page.tsx`
 
 ## Collection facts (verified on-chain Oct 14)
