@@ -7,11 +7,13 @@ import { useAccount, useConnect } from "wagmi";
 const ART_CID = "bafybeihau2egcccbdxymeckmmbrqytbfor5gkt3en6d5fsbueymdbq7g6e";
 const art = (n: number) => `https://gateway.pinata.cloud/ipfs/${ART_CID}/${n}.webp`;
 
+// Hand-picked Chogs (first three also show on phones). Check the art before adding one:
+// some caps carry slogans you don't want on a landing page.
 const PILE = [
   { n: 1462, left: "2%", top: 40, w: 150, r: "-9deg", z: 2 },
-  { n: 250, left: "17%", top: 0, w: 170, r: "5deg", z: 3 },
-  { n: 777, left: "34%", top: 54, w: 190, r: "-3deg", z: 5 },
-  { n: 42, left: "53%", top: 4, w: 165, r: "8deg", z: 4 },
+  { n: 777, left: "17%", top: 0, w: 170, r: "5deg", z: 3 },
+  { n: 42, left: "34%", top: 54, w: 190, r: "-3deg", z: 5 },
+  { n: 1, left: "53%", top: 4, w: 165, r: "8deg", z: 4 },
   { n: 1969, left: "69%", top: 48, w: 150, r: "-6deg", z: 3 },
   { n: 1234, left: "84%", top: 10, w: 130, r: "10deg", z: 2 },
 ];
