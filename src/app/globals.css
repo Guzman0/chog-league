@@ -1,26 +1,77 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --bg: #0e0b1a;
+  --panel: #1a1530;
+  --line: #2e2650;
+  --text: #f1edff;
+  --muted: #a49cc4;
+  --purple: #836ef9;
+  --green: #3ddc97;
+  --red: #ff6b81;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---- Chog reactions ---- */
+@keyframes chog-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  20% { transform: translateY(-14px) scale(1.04) rotate(-2deg); }
+  40% { transform: translateY(0) scale(0.98); }
+  60% { transform: translateY(-8px) scale(1.02) rotate(2deg); }
+  80% { transform: translateY(0); }
+}
+.chog-bounce { animation: chog-bounce 1.1s ease-out 2; }
+
+@keyframes chog-shake {
+  0%, 100% { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-7px) rotate(-1.5deg); }
+  30%, 60%, 90% { transform: translateX(7px) rotate(1.5deg); }
+}
+.chog-shake { animation: chog-shake 0.7s ease-in-out 2; }
+
+.chog-grey { filter: grayscale(1) brightness(0.75); transition: filter 0.4s; }
+
+@keyframes chog-pop {
+  0% { transform: translate(-50%, 10px) scale(0.5); opacity: 0; }
+  20% { transform: translate(-50%, 0) scale(1.1); opacity: 1; }
+  30% { transform: translate(-50%, 0) scale(1); }
+  85% { opacity: 1; }
+  100% { transform: translate(-50%, -16px); opacity: 0; }
+}
+.chog-pop { animation: chog-pop 3.4s ease-out forwards; }
+
+@keyframes chog-confetti {
+  0% { transform: translateY(-20px) rotate(0); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(260px) rotate(540deg); opacity: 0; }
+}
+.chog-confetti { top: 0; animation-name: chog-confetti; animation-timing-function: ease-in; animation-fill-mode: forwards; opacity: 0; }
+
+@keyframes chog-tear {
+  0% { transform: translateY(0); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(60px); opacity: 0; }
+}
+.chog-tear { animation: chog-tear 1.6s ease-in 2; }
+
+@keyframes chog-crown {
+  0%, 100% { transform: translateX(-50%) rotate(-8deg); }
+  50% { transform: translateX(-50%) rotate(8deg) translateY(-3px); }
+}
+.chog-crown { animation: chog-crown 2.4s ease-in-out infinite; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); }
+
+@keyframes chog-fire {
+  0%, 100% { box-shadow: 0 0 12px 2px #ff8a3d, 0 0 0 2px #ff8a3d; }
+  50% { box-shadow: 0 0 24px 6px #ffb347, 0 0 0 2px #ffb347; }
+}
+.chog-fire { animation: chog-fire 1.2s ease-in-out infinite; }
+.chog-frost { box-shadow: 0 0 16px 3px #7fd6ff, 0 0 0 2px #7fd6ff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chog-bounce, .chog-shake, .chog-pop, .chog-confetti, .chog-tear, .chog-crown, .chog-fire { animation-duration: 0.01s; animation-iteration-count: 1; }
 }
