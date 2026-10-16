@@ -15,7 +15,7 @@ import ChogPicker from "@/components/ChogPicker";
 import DuelLobby from "@/components/DuelLobby";
 import DuelScreen from "@/components/DuelScreen";
 import InviteBanner from "@/components/InviteBanner";
-import { SoundToggle } from "@/components/ui";
+import { MusicToggle, SoundToggle } from "@/components/ui";
 import { useSession } from "@/components/useSession";
 import { useChogStats } from "@/components/useChogStats";
 import { useDuels, usePresence } from "@/components/useDuels";
@@ -162,11 +162,12 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-24 pt-5 sm:pt-7">
-      <header className="mb-6 flex items-center justify-between gap-3">
-        <button type="button" onClick={() => setChog(null)} className="wordmark whitespace-nowrap text-[1.7rem] sm:text-4xl" aria-label="Chog League home">
+      <header className="mb-6 flex items-center justify-between gap-2">
+        <button type="button" onClick={() => setChog(null)} className="wordmark whitespace-nowrap text-[1.2rem] min-[380px]:text-[1.4rem] sm:text-4xl" aria-label="Chog League home">
           Chog League
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <MusicToggle />
           <SoundToggle />
           <WalletButton />
         </div>

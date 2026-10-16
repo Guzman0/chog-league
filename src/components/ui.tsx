@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { isMuted, onMutedChange, setMuted } from "@/lib/sound";
+import { isMusicOn, isMuted, onMusicChange, onMutedChange, setMusicOn, setMuted } from "@/lib/sound";
 
 export function Pill({
   on, onClick, children, disabled, title,
@@ -95,8 +95,31 @@ export function SoundToggle() {
     };
   }, []);
   return (
-    <button type="button" className="btn btn-ghost h-10 w-10 text-lg" onClick={() => setMuted(!muted)} aria-label={muted ? "Turn sound on" : "Mute sound"} title={muted ? "Sound off" : "Sound on"}>
+    <button type="button" className="btn btn-ghost h-9 w-9 text-base sm:h-10 sm:w-10 sm:text-lg" onClick={() => setMuted(!muted)} aria-label={muted ? "Turn sound on" : "Mute sound"} title={muted ? "Sound off" : "Sound on"}>
       {muted ? "🔇" : "🔊"}
+    </button>
+  );
+}
+
+export function MusicToggle() {
+  const [on, set] = useState(false);
+  useEffect(() => {
+    set(isMusicOn());
+    const off = onMusicChange(set);
+    return () => {
+      off();
+    };
+  }, []);
+  return (
+    <button
+      type="button"
+      className={`btn h-9 w-9 text-base sm:h-10 sm:w-10 sm:text-lg ${on ? "btn-banana" : "btn-ghost"}`}
+      onClick={() => setMusicOn(!on)}
+      aria-pressed={on}
+      aria-label={on ? "Turn music off" : "Turn music on"}
+      title={on ? "Music on" : "Music off"}
+    >
+      <span className={on ? "" : "opacity-50"}>🎵</span>
     </button>
   );
 }

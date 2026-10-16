@@ -22,7 +22,7 @@ export default function WalletButton() {
       );
     }
     return (
-      <button onClick={() => disconnect()} className="btn btn-ghost whitespace-nowrap px-3 py-2 text-sm sm:px-4" title="Disconnect">
+      <button onClick={() => disconnect()} className="btn btn-ghost whitespace-nowrap px-2.5 py-2 text-[13px] sm:px-4 sm:text-sm" title="Disconnect">
         {short(address)}
       </button>
     );
@@ -30,7 +30,7 @@ export default function WalletButton() {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <ConnectButton className="btn btn-primary whitespace-nowrap px-3 py-2 text-sm sm:px-4" />
+      <ConnectButton className="btn btn-primary whitespace-nowrap px-2.5 py-2 text-[13px] sm:px-4 sm:text-sm" />
     </div>
   );
 }

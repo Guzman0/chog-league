@@ -123,3 +123,95 @@ export function play(s: Sfx) {
       return tones([523, 659, 784, 1047].map((f, i) => [f, i * 0.11, 0.3, "triangle", 0.16] as Tone));
   }
 }
+
+// ---------------------------------------------------------------- Background music
+// An original looping track (public/music/chog-loop.wav, made by scripts/make-music.ts).
+// Off until the player turns it on; the choice is remembered per browser.
+const MUSIC_URL = "/music/chog-loop.wav";
+const MUSIC_VOLUME = 0.22;
+let musicOn: boolean | null = null;
+let musicBuf: Promise<AudioBuffer> | null = null;
+let musicSrc: AudioBufferSourceNode | null = null;
+let musicGain: GainNode | null = null;
+const musicListeners = new Set<(on: boolean) => void>();
+
+export function isMusicOn(): boolean {
+  if (musicOn === null) {
+    try {
+      musicOn = localStorage.getItem("chog-music") === "on";
+    } catch {
+      musicOn = false;
+    }
+  }
+  return musicOn;
+}
+export function onMusicChange(fn: (on: boolean) => void) {
+  musicListeners.add(fn);
+  return () => musicListeners.delete(fn);
+}
+
+async function startMusic() {
+  const a = audio();
+  if (!a || musicSrc) return;
+  musicBuf ??= fetch(MUSIC_URL)
+    .then((r) => r.arrayBuffer())
+    .then((b) => a.decodeAudioData(b));
+  let buf: AudioBuffer;
+  try {
+    buf = await musicBuf;
+  } catch {
+    musicBuf = null; // try again next time
+    return;
+  }
+  if (!isMusicOn() || musicSrc || document.hidden) return;
+  if (a.state !== "running") await a.resume().catch(() => {});
+  musicGain = a.createGain();
+  musicGain.gain.setValueAtTime(0.0001, a.currentTime);
+  musicGain.gain.exponentialRampToValueAtTime(MUSIC_VOLUME, a.currentTime + 1.5); // fade in
+  musicGain.connect(a.destination);
+  musicSrc = a.createBufferSource();
+  musicSrc.buffer = buf;
+  musicSrc.loop = true; // seamless: the track is built to loop
+  musicSrc.connect(musicGain);
+  musicSrc.start();
+}
+
+function stopMusic() {
+  const a = audio();
+  if (!a || !musicSrc || !musicGain) return;
+  const src = musicSrc;
+  const g = musicGain;
+  musicSrc = null;
+  musicGain = null;
+  g.gain.cancelScheduledValues(a.currentTime);
+  g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), a.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.4); // fade out
+  src.stop(a.currentTime + 0.45);
+}
+
+/** Called from a tap/click (the music button), so the browser allows sound. */
+export function setMusicOn(on: boolean) {
+  musicOn = on;
+  try {
+    localStorage.setItem("chog-music", on ? "on" : "off");
+  } catch {}
+  musicListeners.forEach((l) => l(on));
+  if (on) {
+    unlock();
+    void startMusic();
+  } else stopMusic();
+}
+
+if (typeof window !== "undefined") {
+  // Music was on last visit: start again on the first tap (browsers need one).
+  const resumeOnTap = () => {
+    if (isMusicOn()) void startMusic();
+    ["pointerdown", "keydown"].forEach((e) => window.removeEventListener(e, resumeOnTap, true));
+  };
+  ["pointerdown", "keydown"].forEach((e) => window.addEventListener(e, resumeOnTap, { capture: true, passive: true }));
+  // Pause while the tab is hidden, carry on when it's back.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopMusic();
+    else if (isMusicOn() && unlocked) void startMusic();
+  });
+}
