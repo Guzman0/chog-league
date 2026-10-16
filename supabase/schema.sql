@@ -75,3 +75,42 @@ alter table public.presence enable row level security;
 
 -- Version number so two players' screens can't overwrite each other's duel updates.
 alter table public.duels add column if not exists version integer not null default 0;
+
+-- ---------------------------------------------------------------------------
+-- $CHOG shop and weekly prize. Safe to run again.
+
+-- Every shop purchase. One real $CHOG payment (tx_hash) buys one item, ever.
+create table if not exists public.purchases (
+  id uuid primary key,
+  token_id text not null,
+  item_id text not null,
+  price numeric not null,
+  wallet text not null,
+  tx_hash text not null unique,
+  created_at bigint not null
+);
+create index if not exists purchases_token_idx on public.purchases (token_id);
+create index if not exists purchases_created_idx on public.purchases (created_at);
+
+-- What each Chog is wearing (one item per slot), saved by token ID.
+create table if not exists public.loadouts (
+  token_id text primary key,
+  title text,
+  frame text,
+  victory text,
+  updated_at bigint not null default 0
+);
+
+-- Prize payments. YOU fill this in each Monday (Table Editor → payouts → Insert row):
+--   week     = the Monday the finished week started, like 2026-10-19
+--   paid_tx  = the transaction hash of the prize you sent to the champion
+--   burn_tx  = the transaction hash of the 30% you sent to the burn address
+create table if not exists public.payouts (
+  week text primary key,
+  paid_tx text,
+  burn_tx text
+);
+
+alter table public.purchases enable row level security;
+alter table public.loadouts enable row level security;
+alter table public.payouts enable row level security;

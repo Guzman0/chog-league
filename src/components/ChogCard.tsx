@@ -5,6 +5,8 @@ import type { ChogSummary, Trade } from "@/lib/game";
 import { POWERS, multiplierCap, type ChogIdentity } from "@/lib/identity";
 import { short } from "./WalletButton";
 import ChogAvatar, { useReaction } from "./ChogAvatar";
+import { ChogTitle } from "./Cosmetics";
+import type { Loadout } from "@/lib/shop";
 
 // What the Chog says, based on how it's trading right now.
 function mood(s: ChogSummary | undefined, crowned: boolean) {
@@ -20,7 +22,7 @@ function mood(s: ChogSummary | undefined, crowned: boolean) {
 
 // Always-visible strip: the Chog (reacting), its level, mood and balance.
 export function ChogBar({
-  chog, identity, powerUsed, crowns = 0, isMine, mode, summary, lastSettled, crowned, onSwitch, onMode, leagueLocked,
+  chog, identity, powerUsed, crowns = 0, isMine, mode, summary, lastSettled, crowned, onSwitch, onMode, leagueLocked, loadout = {},
 }: {
   chog: ChogData;
   identity: ChogIdentity;
@@ -34,18 +36,20 @@ export function ChogBar({
   onSwitch: () => void;
   onMode: (m: "league" | "practice") => void;
   leagueLocked: boolean;
+  loadout?: Loadout; // what it's wearing from the $CHOG shop
 }) {
   const reaction = useReaction(lastSettled);
   const m = mood(summary, crowned);
   return (
     <section className="panel flex flex-wrap items-center gap-4 sm:flex-nowrap">
       <div className="w-24 shrink-0 sm:w-28">
-        <ChogAvatar image={chog.image} name={chog.name} crowned={crowned} streak={summary?.streak ?? 0} reaction={reaction} size="md" />
+        <ChogAvatar image={chog.image} name={chog.name} crowned={crowned} streak={summary?.streak ?? 0} reaction={reaction} size="md" frame={loadout.frame} victory={loadout.victory} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-3">
           <h2 className="truncate text-2xl">{chog.name}</h2>
           <span className="text-sm text-[var(--muted)]">token {chog.tokenId}</span>
+          {loadout.title && <ChogTitle id={loadout.title} />}
         </div>
         <p className="text-sm font-extrabold">
           {summary ? `Level ${summary.level.level} ${summary.level.title}` : "…"}

@@ -19,9 +19,12 @@ import { SoundToggle } from "@/components/ui";
 import { useSession } from "@/components/useSession";
 import { useChogStats } from "@/components/useChogStats";
 import { useDuels, usePresence } from "@/components/useDuels";
+import ShopPanel from "@/components/Shop";
+import { useShop } from "@/components/useShop";
+import type { Loadout } from "@/lib/shop";
 
 type Mode = "league" | "practice";
-type Tab = "trade" | "duel" | "league";
+type Tab = "trade" | "duel" | "league" | "shop";
 
 export default function Home() {
   const { address, isConnected, chainId } = useAccount();
@@ -35,6 +38,9 @@ export default function Home() {
   const [leaderId, setLeaderId] = useState<string | null>(null);
   const [picker, setPicker] = useState(false);
   const champions = useChampions();
+  const shop = useShop(chog?.tokenId);
+  const [preview, setPreview] = useState<Loadout>({}); // shop "try on", never saved
+  useEffect(() => setPreview({}), [chog?.tokenId]);
 
   const isMine = !!(chog && address && chog.owner.toLowerCase() === address.toLowerCase());
   const onMonad = isConnected && chainId === monad.id;
@@ -158,20 +164,22 @@ export default function Home() {
             onSwitch={() => setPicker(true)}
             onMode={setMode}
             leagueLocked={!isMine}
+            loadout={tab === "shop" ? { ...shop.loadout, ...preview } : shop.loadout}
           />
 
-          <nav className="flex gap-2" aria-label="Sections">
+          <nav className="flex gap-1.5 sm:gap-2" aria-label="Sections">
             {([
               ["trade", "📈 Trade"],
               ["duel", "⚔️ Duel"],
               ["league", "👑 League"],
+              ["shop", "✨ Shop"],
             ] as [Tab, string][]).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => setTab(k)}
                 aria-current={tab === k ? "page" : undefined}
-                className={`btn relative flex-1 py-2.5 text-base sm:flex-none sm:px-7 ${tab === k ? "btn-banana" : "btn-ghost"}`}
+                className={`btn relative flex-1 whitespace-nowrap px-1 py-2.5 text-[13px] sm:flex-none sm:px-7 sm:text-base ${tab === k ? "btn-banana" : "btn-ghost"}`}
               >
                 {label}
                 {k === "duel" && duelBadge && <span className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full border-2 border-[var(--ink)] bg-[var(--red)]" aria-label="Duel waiting" />}
@@ -214,6 +222,19 @@ export default function Home() {
               signInCard
             ))}
 
+          {tab === "shop" && (
+            <ShopPanel
+              chog={chog}
+              shop={shop}
+              isMine={isMine}
+              signedIn={session.signedIn}
+              onSignIn={session.signIn}
+              signingIn={session.busy}
+              preview={preview}
+              setPreview={setPreview}
+            />
+          )}
+
           {tab === "league" && (
             <div className="grid gap-6 lg:grid-cols-2">
               <ChogRecord chog={chog} identity={identity!} crowns={crownsFor(champions, chog.tokenId)} summary={league.stats?.summary} duelRecord={league.stats?.duels} />
@@ -224,7 +245,7 @@ export default function Home() {
       )}
 
       <footer className="mt-16 text-center text-xs text-[var(--muted)]">
-        Made for Chogathon 2026. Demo money only, no real funds are ever used.
+        Made for Chogathon 2026. Trading and duels use demo money only. The shop and the weekly prize use real $CHOG on Monad.
       </footer>
 
       <ChogPicker open={picker} onClose={() => setPicker(false)} onSelect={select} onLoadId={load} leaderId={leaderId} loading={loading} error={err} />

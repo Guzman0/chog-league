@@ -70,7 +70,7 @@ export function CustomNumber({
 // A small reminder that a number is play money.
 export function Demo() {
   return (
-    <span className="ml-1 inline-block rounded-md border-2 border-[var(--ink)] bg-[var(--sky)] px-1 align-middle text-[10px] font-black uppercase leading-4 tracking-wide text-[var(--ink)]" title="Demo money only. No real funds are ever used.">
+    <span className="ml-1 inline-block rounded-md border-2 border-[var(--ink)] bg-[var(--sky)] px-1 align-middle text-[10px] font-black uppercase leading-4 tracking-wide text-[var(--ink)]" title="Demo money only. Trading never uses real funds.">
       demo
     </span>
   );

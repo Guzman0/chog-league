@@ -4,9 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import type { ChogData } from "@/lib/chog";
 import type { ChogSummary } from "@/lib/game";
 import { fetchChog } from "./MyChogs";
+import { Framed, ChogTitle, useLoadouts } from "./Cosmetics";
+import { usePot } from "./useShop";
+import { fmtChog, txUrl } from "@/lib/shop";
+import { short } from "./WalletButton";
 
 type Board = { resetsAt: number; rows: ChogSummary[] };
-export type Champion = { weekStart: number; tokenId: string; balance: number; wins: number; losses: number; players: number };
+export type Champion = {
+  weekStart: number; tokenId: string; balance: number; wins: number; losses: number; players: number;
+  prize: number; burn: number; paidTx?: string; burnTx?: string; owner?: string;
+};
 
 // Past weekly winners (newest first). Loaded once; finished weeks don't change.
 export function useChampions() {
@@ -75,6 +82,8 @@ export default function Leaderboard({
 
   const left = useCountdown(board?.resetsAt ?? null);
   const reigning = champions?.[0];
+  const pot = usePot(refreshKey);
+  const looks = useLoadouts([...(board?.rows.map((r) => r.tokenId) ?? []), ...(champions?.map((c) => c.tokenId) ?? [])], refreshKey);
 
   return (
     <section className="panel">
@@ -88,6 +97,16 @@ export default function Leaderboard({
           <p className="display num text-xl text-[var(--banana)]" aria-live="off">{left ?? "…"}</p>
         </div>
       </div>
+      <div className="panel-flat mb-3 flex items-center gap-3 bg-[var(--banana)] p-3 text-[var(--ink)]">
+        <span className="text-3xl" aria-hidden="true">🏆</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-black uppercase tracking-wide">This week&apos;s prize for #1, in real $CHOG</span>
+          <b className="display num block text-2xl">{pot ? fmtChog(pot.prize) : "…"}</b>
+          <span className="block text-xs font-extrabold">
+            {pot && pot.sales > 0 ? `${fmtChog(pot.base)} + ${fmtChog(pot.prize - pot.base)} from shop sales` : "Grows with every Shop purchase: 70% to the prize, 30% burned"}
+          </span>
+        </span>
+      </div>
       {!board ? (
         <p className="text-sm text-[var(--muted)]">Loading…</p>
       ) : board.rows.length === 0 ? (
@@ -100,14 +119,16 @@ export default function Leaderboard({
               <li key={r.tokenId}>
                 <button onClick={() => c && onSelect(c)} className={`panel-flat flex w-full items-center gap-3 p-2 text-left text-sm ${i === 0 ? "bg-[var(--banana)] text-[var(--ink)]" : ""}`}>
                   <span className="display w-7 text-center text-xl">{i === 0 ? "👑" : i + 1}</span>
-                  {c?.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.image} alt="" className="h-10 w-10 rounded-lg border-2 border-[var(--ink)] object-cover" />
-                  ) : (
-                    <span className="h-10 w-10 rounded-lg border-2 border-[var(--ink)] bg-[var(--line)]" />
-                  )}
-                  <span className="flex-1">
-                    <b>{c?.name ?? `Token ${r.tokenId}`}</b>
+                  <Framed frame={looks[r.tokenId]?.frame} small>
+                    {c?.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.image} alt="" className="block h-10 w-10 rounded-lg border-2 border-[var(--ink)] object-cover" />
+                    ) : (
+                      <span className="block h-10 w-10 rounded-lg border-2 border-[var(--ink)] bg-[var(--line)]" />
+                    )}
+                  </Framed>
+                  <span className="min-w-0 flex-1">
+                    <b>{c?.name ?? `Token ${r.tokenId}`}</b> <ChogTitle id={looks[r.tokenId]?.title} small />
                     <span className={`block text-xs ${i === 0 ? "" : "text-[var(--muted)]"}`}>Level {r.level.level}, {r.wins} won, {r.losses} lost</span>
                   </span>
                   <span className={`display num text-xl ${i === 0 ? "" : r.weekBalance >= 1000 ? "text-[var(--green)]" : "text-[var(--red)]"}`}>${r.weekBalance.toLocaleString()}</span>
@@ -146,14 +167,18 @@ export default function Leaderboard({
               </span>
               <span className="display text-sm">View ›</span>
             </button>
+            <PrizeLine c={reigning} />
             {champions.length > 1 && (
-              <ol className="space-y-1.5 text-sm">
+              <ol className="mt-3 space-y-1.5 text-sm">
                 {champions.slice(1).map((c) => (
                   <li key={c.weekStart}>
-                    <button type="button" onClick={() => names[c.tokenId] && onSelect(names[c.tokenId])} className="panel-flat flex w-full items-center justify-between gap-2 px-3 py-2 text-left">
-                      <span><span className="text-[var(--muted)]">Week of {weekLabel(c.weekStart)}</span> · <b>{names[c.tokenId]?.name ?? `Token ${c.tokenId}`}</b></span>
-                      <span className="num font-black text-[var(--banana)]">${c.balance.toLocaleString()}</span>
-                    </button>
+                    <div className="panel-flat px-3 py-2">
+                      <button type="button" onClick={() => names[c.tokenId] && onSelect(names[c.tokenId])} className="flex w-full items-center justify-between gap-2 text-left">
+                        <span><span className="text-[var(--muted)]">Week of {weekLabel(c.weekStart)}</span> · <b>{names[c.tokenId]?.name ?? `Token ${c.tokenId}`}</b></span>
+                        <span className="num font-black text-[var(--banana)]">${c.balance.toLocaleString()}</span>
+                      </button>
+                      <PrizeLine c={c} compact />
+                    </div>
                   </li>
                 ))}
               </ol>
@@ -162,5 +187,21 @@ export default function Leaderboard({
         )}
       </div>
     </section>
+  );
+}
+
+// The $CHOG prize for a finished week, with links to prove it was paid and burned.
+function PrizeLine({ c, compact = false }: { c: Champion; compact?: boolean }) {
+  const link = (href: string, label: string) => (
+    <a href={txUrl(href)} target="_blank" rel="noreferrer" className="rounded-md border-2 border-[var(--ink)] bg-[var(--green)] px-1.5 font-black text-[var(--ink)] hover:brightness-110">
+      {label} ↗
+    </a>
+  );
+  return (
+    <p className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-extrabold ${compact ? "mt-1" : ""}`}>
+      <span>🏆 Prize {fmtChog(c.prize)}</span>
+      {c.paidTx ? link(c.paidTx, "Paid ✓") : <span className="text-[var(--muted)]">Payment pending{c.owner ? ` to ${short(c.owner)}` : ""}</span>}
+      {c.burn > 0 && (c.burnTx ? link(c.burnTx, `${fmtChog(c.burn)} burned ✓`) : <span className="text-[var(--muted)]">{fmtChog(c.burn)} to burn</span>)}
+    </p>
   );
 }

@@ -7,6 +7,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Trade } from "./game";
 import type { Duel, DuelStatus } from "./duels";
 import { isPowerId } from "./identity";
+import type { Loadout, Payout, Purchase } from "./shop";
 
 export type TradeFilter = {
   tokenId?: string;
@@ -315,4 +316,101 @@ export async function listPresence(since: number): Promise<Presence[]> {
   }
   const db = (await readFile()) as FileDB & FileDuels;
   return (db.presence ?? []).filter((p) => p.lastSeen >= since);
+}
+
+// ================================================================ Shop ($CHOG cosmetics)
+// Purchases and what each Chog wears are saved by token ID, so they go with the NFT.
+type FileShop = { purchases?: Purchase[]; loadouts?: Record<string, Loadout>; payouts?: Payout[] };
+type PurchaseRow = { id: string; token_id: string; item_id: string; price: number; wallet: string; tx_hash: string; created_at: number };
+
+const shopTableHint = (msg: string) =>
+  /relation|does not exist|schema cache/i.test(msg) ? "The shop needs a one-time database update (see supabase/schema.sql)." : `Database error: ${msg}`;
+
+export async function listPurchases(f: { tokenId?: string; since?: number; until?: number; txHash?: string } = {}): Promise<Purchase[]> {
+  if (usingSupabase) {
+    let q = supabase().from("purchases").select("*").order("created_at", { ascending: true }).limit(5000);
+    if (f.tokenId) q = q.eq("token_id", f.tokenId);
+    if (f.since !== undefined) q = q.gte("created_at", f.since);
+    if (f.until !== undefined) q = q.lte("created_at", f.until);
+    if (f.txHash) q = q.eq("tx_hash", f.txHash.toLowerCase());
+    const { data, error } = await q;
+    if (error) throw new Error(shopTableHint(error.message));
+    return (data as PurchaseRow[]).map((r) => ({
+      id: r.id, tokenId: r.token_id, itemId: r.item_id, price: Number(r.price), wallet: r.wallet, txHash: r.tx_hash, createdAt: Number(r.created_at),
+    }));
+  }
+  const db = (await readFile()) as FileDB & FileShop;
+  return (db.purchases ?? []).filter(
+    (p) =>
+      (!f.tokenId || p.tokenId === f.tokenId) &&
+      (f.since === undefined || p.createdAt >= f.since) &&
+      (f.until === undefined || p.createdAt <= f.until) &&
+      (!f.txHash || p.txHash === f.txHash.toLowerCase()),
+  );
+}
+
+/** Saves a purchase. Returns false if that payment was already used (each payment buys one item). */
+export async function insertPurchase(p: Purchase): Promise<boolean> {
+  const row: PurchaseRow = { id: p.id, token_id: p.tokenId, item_id: p.itemId, price: p.price, wallet: p.wallet, tx_hash: p.txHash.toLowerCase(), created_at: p.createdAt };
+  if (usingSupabase) {
+    const { error } = await supabase().from("purchases").insert(row);
+    if (error && /duplicate|unique/i.test(error.message)) return false;
+    if (error) throw new Error(shopTableHint(error.message));
+    return true;
+  }
+  return withFile((db) => {
+    const x = db as FileDB & FileShop;
+    x.purchases ??= [];
+    if (x.purchases.some((e) => e.txHash === row.tx_hash)) return false;
+    x.purchases.push({ ...p, txHash: row.tx_hash });
+    return true;
+  });
+}
+
+export async function getLoadouts(tokenIds: string[]): Promise<Record<string, Loadout>> {
+  if (!tokenIds.length) return {};
+  if (usingSupabase) {
+    const { data, error } = await supabase().from("loadouts").select("*").in("token_id", tokenIds);
+    if (error) {
+      // Before the database update, nobody wears anything yet. Don't break the page.
+      if (/relation|does not exist|schema cache/i.test(error.message)) return {};
+      throw new Error(`Database error: ${error.message}`);
+    }
+    const out: Record<string, Loadout> = {};
+    for (const r of data as { token_id: string; title: string | null; frame: string | null; victory: string | null }[]) {
+      out[r.token_id] = { ...(r.title ? { title: r.title } : {}), ...(r.frame ? { frame: r.frame } : {}), ...(r.victory ? { victory: r.victory } : {}) };
+    }
+    return out;
+  }
+  const db = (await readFile()) as FileDB & FileShop;
+  return Object.fromEntries(tokenIds.filter((id) => db.loadouts?.[id]).map((id) => [id, db.loadouts![id]]));
+}
+
+export async function setLoadout(tokenId: string, l: Loadout): Promise<void> {
+  if (usingSupabase) {
+    const { error } = await supabase()
+      .from("loadouts")
+      .upsert({ token_id: tokenId, title: l.title ?? null, frame: l.frame ?? null, victory: l.victory ?? null, updated_at: Date.now() });
+    if (error) throw new Error(shopTableHint(error.message));
+    return;
+  }
+  await withFile((db) => {
+    const x = db as FileDB & FileShop;
+    (x.loadouts ??= {})[tokenId] = l;
+  });
+}
+
+/** Prize payments, entered by the Chog League team (Supabase table "payouts"). */
+export async function listPayouts(): Promise<Payout[]> {
+  if (usingSupabase) {
+    const { data, error } = await supabase().from("payouts").select("*").limit(500);
+    if (error) return []; // table not created yet: just show "pending"
+    return (data as { week: string; paid_tx: string | null; burn_tx: string | null }[]).map((r) => ({
+      week: String(r.week).slice(0, 10),
+      ...(r.paid_tx ? { paidTx: r.paid_tx.trim() } : {}),
+      ...(r.burn_tx ? { burnTx: r.burn_tx.trim() } : {}),
+    }));
+  }
+  const db = (await readFile()) as FileDB & FileShop;
+  return db.payouts ?? [];
 }

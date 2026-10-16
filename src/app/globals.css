@@ -166,6 +166,53 @@ h1, h2, h3, .display {
 .chog-fire { animation: chog-fire 1.2s ease-in-out infinite; }
 .chog-frost { box-shadow: 0 0 16px 3px #7fd6ff, 0 0 0 3px #7fd6ff; }
 
+/* ---- $CHOG shop cosmetics ---- */
+.frame-gold {
+  background: linear-gradient(135deg, #fff6b8 0%, #f5b301 30%, #fff1a0 50%, #d99a00 70%, #fff6b8 100%);
+  box-shadow: 0 0 0 3px var(--ink), 0 0 18px 2px rgba(255, 200, 60, 0.55);
+}
+@keyframes frame-neon {
+  0%, 100% { box-shadow: 0 0 0 3px var(--ink), 0 0 12px 2px #8b74ff, 0 0 26px 4px rgba(139, 116, 255, 0.5); }
+  50% { box-shadow: 0 0 0 3px var(--ink), 0 0 20px 5px #b9a8ff, 0 0 40px 10px rgba(255, 122, 198, 0.45); }
+}
+.frame-neon {
+  background: linear-gradient(135deg, #8b74ff, #ff7ac6 50%, #8b74ff);
+  animation: frame-neon 1.8s ease-in-out infinite;
+}
+@keyframes chog-spark {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+  8% { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 30px)) scale(0.3); opacity: 0; }
+}
+.chog-spark { animation: chog-spark 1.1s cubic-bezier(.15, .7, .35, 1) both; }
+@keyframes chog-flash {
+  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+  15% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+}
+.chog-flash { animation: chog-flash 0.7s ease-out both; }
+@keyframes chog-rocket {
+  0% { transform: translate(-50%, 20px) rotate(-45deg) scale(0.8); opacity: 0; }
+  10% { opacity: 1; }
+  25% { transform: translate(-50%, 0) rotate(-45deg) scale(1); }
+  100% { transform: translate(-50%, -340px) rotate(-45deg) scale(1.3); opacity: 0; }
+}
+.chog-rocket { animation: chog-rocket 1.8s cubic-bezier(.5, 0, .7, .3) both; filter: drop-shadow(0 3px 0 var(--ink)); }
+@keyframes chog-smoke {
+  0% { transform: translateY(0) scale(0.5); opacity: 0; }
+  20% { opacity: 0.9; }
+  100% { transform: translateY(-70px) scale(1.6); opacity: 0; }
+}
+.chog-smoke { animation: chog-smoke 1.4s ease-out both; }
+@keyframes chog-launch {
+  0%, 100% { transform: translateY(0); }
+  10%, 20% { transform: translate(-2px, 2px); }
+  15%, 25% { transform: translate(2px, 2px); }
+  45% { transform: translateY(-24px) scale(1.03); }
+  70% { transform: translateY(-6px); }
+}
+.chog-launch { animation: chog-launch 1.6s ease-out 1; }
+
 /* Landing sticker pile: the one orchestrated entrance on the site */
 @keyframes sticker-drop {
   0% { transform: translateY(-40px) rotate(var(--r)) scale(1.15); opacity: 0; }
@@ -187,7 +234,8 @@ h1, h2, h3, .display {
 .live-dot { animation: live-pulse 1.4s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .chog-bounce, .chog-shake, .chog-pop, .chog-confetti, .chog-tear, .chog-crown, .chog-fire, .sticker, .live-dot {
+  .chog-bounce, .chog-shake, .chog-pop, .chog-confetti, .chog-tear, .chog-crown, .chog-fire, .sticker, .live-dot,
+  .frame-neon, .chog-spark, .chog-flash, .chog-rocket, .chog-smoke, .chog-launch {
     animation-duration: 0.01s !important;
     animation-iteration-count: 1 !important;
   }

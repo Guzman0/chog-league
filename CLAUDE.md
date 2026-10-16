@@ -21,6 +21,13 @@ Judging: Novelty 30%, Fun 20%, Retention 20%, Clarity 15%, Execution 15%, $CHOG 
   All EV-neutral; level = sum of levelPoints(). Powers stored in trades.power (Supabase column). Not used in duels.
 - League extras: live reset countdown, Hall of Champions (`/api/champions`, #1 of each finished week,
   cached 5 min), 👑×N crowns on the Chog, daily play streak (dayStreak in summarize).
+- $CHOG shop + weekly prize (`src/lib/shop.ts` holds every price and address): titles 250, frames 500,
+  victory animations 1,000 $CHOG, looks only, saved per token ID (tables purchases + loadouts).
+  Buyer sends $CHOG to TREASURY 0x87F4…6ee5; `src/lib/payments.ts` checks the Transfer log on-chain
+  (from = signed-in wallet, to = treasury, amount ≥ price); each tx hash buys one item once.
+  Weekly prize = 2,000 + 70% of that week's sales; 30% burned by Guzman when paying. He records
+  payments in the Supabase `payouts` table (week = Monday date, paid_tx, burn_tx) → "Paid ✓"/"burned ✓"
+  links in the Hall of Champions. Trading and duels stay demo money; never add real-money wagering.
 - Local testing without network: `CHOG_FAKE_PRICES=1` makes up prices (ignored on Vercel).
 - `src/middleware.ts` sets the practice cookie on first page load (prevents duplicate practice IDs).
 - Practice mode: anyone, any Chog, no wallet; never counts toward records or the league.
@@ -48,7 +55,7 @@ exact Windows / VS Code terminal commands when he needs to run something.
 ## Where things live
 - Rules and numbers: `src/lib/game.ts`
 - Prices: `src/lib/prices.ts` · settlement: `src/lib/settle.ts`
-- APIs: `/api/trade`, `/api/chog/[id]/stats`, `/api/leaderboard`, `/api/price`, `/api/auth`,
+- APIs: `/api/shop`, `/api/loadouts`, `/api/trade`, `/api/chog/[id]/stats`, `/api/leaderboard`, `/api/price`, `/api/auth`,
   `/api/duels`, `/api/duels/[id]`, `/api/presence`
 - UI: `src/components/*`, page in `src/app/page.tsx`
 
