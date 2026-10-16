@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ChogData } from "@/lib/chog";
-import { ITEMS, SLOTS, fmtChog, type Loadout, type ShopItem } from "@/lib/shop";
+import { HOLDER_BADGE_MIN, HOLDER_DISCOUNT, ITEMS, SLOTS, fmtChog, holderPrice, type Loadout, type ShopItem } from "@/lib/shop";
 import { play } from "@/lib/sound";
 import ChogAvatar, { type Reaction } from "./ChogAvatar";
 import { ChogTitle } from "./Cosmetics";
@@ -85,6 +85,12 @@ export default function ShopPanel({
         <span>70% goes to this week&apos;s prize for the league #1{shop.pot ? ` (now ${fmtChog(shop.pot.prize)})` : ""}, 30% is burned 🔥</span>
       </div>
 
+      <p className="mb-4 text-xs font-extrabold text-[var(--muted)]">
+        {shop.holder
+          ? `💜 You hold ${HOLDER_BADGE_MIN.toLocaleString("en-US")}+ $CHOG, so everything is ${HOLDER_DISCOUNT * 100}% off.`
+          : `💜 Hold ${HOLDER_BADGE_MIN.toLocaleString("en-US")}+ $CHOG to get ${HOLDER_DISCOUNT * 100}% off everything and a holder badge on your Chogs.`}
+      </p>
+
       {shop.pending && shop.pendingItem && (
         <div className="panel-flat mb-4 flex flex-wrap items-center justify-between gap-3 border-[var(--banana)] p-3 text-sm">
           <span className="font-extrabold">You paid for {shop.pendingItem.emoji} {shop.pendingItem.name}, but it isn&apos;t added yet.</span>
@@ -142,7 +148,13 @@ export default function ShopPanel({
                     <div key={item.id} className={`panel-flat flex flex-col gap-2 p-3 ${wearing ? "border-[var(--green)]" : trying ? "border-[var(--pink)]" : ""}`}>
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-black"><span aria-hidden="true">{item.emoji}</span> {item.name}</p>
-                        <p className={`display num whitespace-nowrap text-sm ${owned ? "text-[var(--green)]" : "text-[var(--banana)]"}`}>{owned ? "Owned" : fmtChog(item.price)}</p>
+                        <p className={`display num whitespace-nowrap text-right text-sm ${owned ? "text-[var(--green)]" : "text-[var(--banana)]"}`}>
+                          {owned ? "Owned" : shop.holder ? (
+                            <>
+                              <s className="text-xs text-[var(--muted)]">{item.price.toLocaleString("en-US")}</s> {fmtChog(holderPrice(item.price))}
+                            </>
+                          ) : fmtChog(item.price)}
+                        </p>
                       </div>
                       <p className="text-xs text-[var(--muted)]">{item.blurb}</p>
                       <div className="mt-auto flex flex-wrap gap-2">
@@ -158,7 +170,7 @@ export default function ShopPanel({
                             </button>
                             {canBuy && (
                               <button type="button" className="btn btn-primary flex-1 px-3 py-1.5 text-sm" disabled={!!shop.busy || !shop.ready} onClick={() => buy(item)}>
-                                {busy ? "Buying…" : `Buy · ${item.price.toLocaleString("en-US")} $CHOG`}
+                                {busy ? "Buying…" : `Buy · ${(shop.holder ? holderPrice(item.price) : item.price).toLocaleString("en-US")} $CHOG`}
                               </button>
                             )}
                           </>

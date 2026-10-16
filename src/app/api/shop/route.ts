@@ -9,10 +9,10 @@ import { weekStart, WEEK_MS } from "@/lib/game";
 import { CHOG_SUPPLY } from "@/lib/chog";
 import { ownerOf } from "@/lib/chain";
 import { getSessionAddress } from "@/lib/session";
-import { getLoadouts, insertPurchase, listPurchases, setLoadout } from "@/lib/store";
-import { chogDecimals, verifyChogPayment } from "@/lib/payments";
+import { getLoadouts, insertPurchase, listPurchases, paymentUsed, setLoadout } from "@/lib/store";
+import { chogBalance, chogDecimals, verifyChogTransfer } from "@/lib/payments";
 import { weekPrize } from "@/lib/prize";
-import { ITEMS, TREASURY, isTxHash, itemById, type Slot } from "@/lib/shop";
+import { HOLDER_BADGE_MIN, ITEMS, TREASURY, holderPrice, isTxHash, itemById, type Slot } from "@/lib/shop";
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
 const validId = (id: string) => /^\d+$/.test(id) && Number(id) >= 1 && Number(id) <= CHOG_SUPPLY;
@@ -61,11 +61,18 @@ export async function POST(req: Request) {
         if (used.tokenId === tokenId && used.itemId === item.id) return NextResponse.json({ ok: true, ...(await chogShop(tokenId)) });
         return bad("That payment was already used for another item.");
       }
+      if (await paymentUsed(txHash)) return bad("That payment was already used.");
       const owned = await chogShop(tokenId);
       if (owned.owned.includes(item.id)) return bad("This Chog already owns that item.");
 
-      await verifyChogPayment(b.txHash, wallet, item.price);
-      const saved = await insertPurchase({ id: crypto.randomUUID(), tokenId, itemId: item.id, price: item.price, wallet, txHash, createdAt: Date.now() });
+      // Holders (10,000+ $CHOG) pay the discounted price. Their balance is read
+      // after paying, so the payment is added back to see what they held before.
+      const paid = await verifyChogTransfer(b.txHash, wallet, TREASURY, holderPrice(item.price));
+      if (paid < item.price) {
+        const held = (await chogBalance(wallet)) + paid;
+        if (held < HOLDER_BADGE_MIN) throw new Error(`The holder price needs ${HOLDER_BADGE_MIN.toLocaleString("en-US")}+ $CHOG in your wallet. This item is ${item.price.toLocaleString("en-US")} $CHOG.`);
+      }
+      const saved = await insertPurchase({ id: crypto.randomUUID(), tokenId, itemId: item.id, price: paid, wallet, txHash, createdAt: Date.now() });
       if (!saved) return bad("That payment was already used.");
       // Wear it straight away.
       await setLoadout(tokenId, { ...owned.loadout, [item.slot]: item.id });

@@ -6,26 +6,34 @@ import type { ChogSummary } from "@/lib/game";
 import { fetchChog } from "./MyChogs";
 import { Framed, ChogTitle, useLoadouts } from "./Cosmetics";
 import { usePot } from "./useShop";
+import { ChipIn, TipChampion } from "./Support";
 import { fmtChog, txUrl } from "@/lib/shop";
 import { short } from "./WalletButton";
 
 type Board = { resetsAt: number; rows: ChogSummary[] };
 export type Champion = {
   weekStart: number; tokenId: string; balance: number; wins: number; losses: number; players: number;
-  prize: number; burn: number; paidTx?: string; burnTx?: string; owner?: string;
+  prize: number; burn: number; chips: number; paidTx?: string; burnTx?: string; owner?: string;
+  tipTotal?: number; tippers?: number;
 };
 
 // Past weekly winners (newest first). Loaded once; finished weeks don't change.
 export function useChampions() {
   const [champions, set] = useState<Champion[] | null>(null);
   useEffect(() => {
-    fetch("/api/champions", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => set(d?.champions ?? []))
-      .catch(() => set([]));
+    const load = () =>
+      fetch("/api/champions", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => set(d?.champions ?? []))
+        .catch(() => set((c) => c ?? []));
+    load();
+    // A tip was sent: show the new total.
+    window.addEventListener("chog:champions", load);
+    return () => window.removeEventListener("chog:champions", load);
   }, []);
   return champions;
 }
+const reloadChampions = () => window.dispatchEvent(new Event("chog:champions"));
 
 export const crownsFor = (champions: Champion[] | null, tokenId: string) => champions?.filter((c) => c.tokenId === tokenId).length ?? 0;
 
@@ -82,7 +90,8 @@ export default function Leaderboard({
 
   const left = useCountdown(board?.resetsAt ?? null);
   const reigning = champions?.[0];
-  const pot = usePot(refreshKey);
+  const [potKey, setPotKey] = useState(0);
+  const pot = usePot(refreshKey + potKey);
   const looks = useLoadouts([...(board?.rows.map((r) => r.tokenId) ?? []), ...(champions?.map((c) => c.tokenId) ?? [])], refreshKey);
 
   return (
@@ -103,8 +112,11 @@ export default function Leaderboard({
           <span className="block text-[10px] font-black uppercase tracking-wide">This week&apos;s prize for #1, in real $CHOG</span>
           <b className="display num block text-2xl">{pot ? fmtChog(pot.prize) : "…"}</b>
           <span className="block text-xs font-extrabold">
-            {pot && pot.sales > 0 ? `${fmtChog(pot.base)} + ${fmtChog(pot.prize - pot.base)} from shop sales` : "Grows with every Shop purchase: 70% to the prize, 30% burned"}
+            {pot && (pot.sales > 0 || pot.chips > 0)
+              ? [fmtChog(pot.base), pot.prize - pot.base - pot.chips > 0 && `${fmtChog(pot.prize - pot.base - pot.chips)} from the shop`, pot.chips > 0 && `${fmtChog(pot.chips)} chipped in`].filter(Boolean).join(" + ")
+              : "Grows with every Shop purchase (70% to the prize, 30% burned) and every chip in"}
           </span>
+          <ChipIn topChippers={pot?.topChippers} onDone={() => setPotKey((k) => k + 1)} />
         </span>
       </div>
       {!board ? (
@@ -168,6 +180,7 @@ export default function Leaderboard({
               <span className="display text-sm">View ›</span>
             </button>
             <PrizeLine c={reigning} />
+            <TipChampion tokenId={reigning.tokenId} owner={reigning.owner} tipTotal={reigning.tipTotal} tippers={reigning.tippers} onDone={reloadChampions} />
             {champions.length > 1 && (
               <ol className="mt-3 space-y-1.5 text-sm">
                 {champions.slice(1).map((c) => (

@@ -6,6 +6,7 @@ import { POWERS, multiplierCap, type ChogIdentity } from "@/lib/identity";
 import { short } from "./WalletButton";
 import ChogAvatar, { useReaction } from "./ChogAvatar";
 import { ChogTitle } from "./Cosmetics";
+import { HolderBadge } from "./Support";
 import type { Loadout } from "@/lib/shop";
 
 // What the Chog says, based on how it's trading right now.
@@ -72,6 +73,7 @@ export function ChogBar({
               📅 {summary.dayStreak > 0 ? `${summary.dayStreak}-day streak${summary.playedToday ? "" : " · call today to keep it"}` : "Start a daily streak"}
             </span>
           )}
+          <HolderBadge owner={chog.owner} />
           <span className="rounded-lg border-2 border-[var(--ink)] bg-[var(--panel-2)] px-2 py-0.5" title={`From its ${identity.homeFrom}. +1x multiplier limit in this market.`}>
             🏠 Home: {identity.home}
           </span>

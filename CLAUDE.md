@@ -28,6 +28,11 @@ Judging: Novelty 30%, Fun 20%, Retention 20%, Clarity 15%, Execution 15%, $CHOG 
   Weekly prize = 2,000 + 70% of that week's sales; 30% burned by Guzman when paying. He records
   payments in the Supabase `payouts` table (week = Monday date, paid_tx, burn_tx) → "Paid ✓"/"burned ✓"
   links in the Hall of Champions. Trading and duels stay demo money; never add real-money wagering.
+- Chip in (`/api/chipin`, table chipins): any signed-in wallet sends $CHOG to TREASURY; 100% added to that
+  week's prize. Tip the champion (`/api/tips`, table tips): $CHOG goes straight to the reigning champion
+  Chog's current owner. Each tx hash counts once across purchases/chipins/tips (`paymentUsed`).
+- Holders (owner wallet ≥ 10,000 $CHOG): 💜 badge on their Chogs + 20% off shop items (server re-checks
+  balance + amount paid). Constants in `src/lib/shop.ts`. Champions logic lives in `src/lib/champions.ts`.
 - Local testing without network: `CHOG_FAKE_PRICES=1` makes up prices (ignored on Vercel).
 - `src/middleware.ts` sets the practice cookie on first page load (prevents duplicate practice IDs).
 - Practice mode: anyone, any Chog, no wallet; never counts toward records or the league.
@@ -55,7 +60,7 @@ exact Windows / VS Code terminal commands when he needs to run something.
 ## Where things live
 - Rules and numbers: `src/lib/game.ts`
 - Prices: `src/lib/prices.ts` · settlement: `src/lib/settle.ts`
-- APIs: `/api/shop`, `/api/loadouts`, `/api/trade`, `/api/chog/[id]/stats`, `/api/leaderboard`, `/api/price`, `/api/auth`,
+- APIs: `/api/shop`, `/api/loadouts`, `/api/chipin`, `/api/tips`, `/api/champions`, `/api/trade`, `/api/chog/[id]/stats`, `/api/leaderboard`, `/api/price`, `/api/auth`,
   `/api/duels`, `/api/duels/[id]`, `/api/presence`
 - UI: `src/components/*`, page in `src/app/page.tsx`
 

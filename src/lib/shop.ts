@@ -55,10 +55,23 @@ export type Payout = { week: string; paidTx?: string; burnTx?: string };
 /** Week key as people read it: the Monday the week started, "2026-10-19". */
 export const weekKey = (weekStartMs: number) => new Date(weekStartMs).toISOString().slice(0, 10);
 
-/** The prize for a week, from its shop sales. */
-export function prizeFor(sales: number) {
-  return { base: BASE_PRIZE, sales, prize: BASE_PRIZE + Math.floor(sales * POT_SHARE), burn: Math.ceil(sales * BURN_SHARE) };
+/** The prize for a week: base + 70% of shop sales + everything chipped in. */
+export function prizeFor(sales: number, chips = 0) {
+  return { base: BASE_PRIZE, sales, chips, prize: BASE_PRIZE + Math.floor(sales * POT_SHARE) + chips, burn: Math.ceil(sales * BURN_SHARE) };
 }
+
+// ---- Chip in (add $CHOG to this week's prize) and tips (straight to the champion)
+export const MIN_CHIP = 10;
+export const MAX_CHIP = 1_000_000;
+export const CHIP_PRESETS = [100, 250, 500, 1000];
+export const TIP_PRESETS = [50, 100, 250, 500];
+/** Owners holding at least this much $CHOG get the 💜 holder badge on their Chogs and a shop discount. */
+export const HOLDER_BADGE_MIN = 10_000;
+export const HOLDER_DISCOUNT = 0.2; // 20% off shop items for holders
+export const holderPrice = (price: number) => Math.ceil(price * (1 - HOLDER_DISCOUNT));
+
+export type ChipIn = { id: string; wallet: string; amount: number; txHash: string; createdAt: number };
+export type Tip = { id: string; tokenId: string; week: string; from: string; to: string; amount: number; txHash: string; createdAt: number };
 
 export const fmtChog = (n: number) => `${n.toLocaleString("en-US")} $CHOG`;
 export const txUrl = (hash: string) => `${EXPLORER}/tx/${hash}`;

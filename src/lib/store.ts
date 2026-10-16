@@ -7,7 +7,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Trade } from "./game";
 import type { Duel, DuelStatus } from "./duels";
 import { isPowerId } from "./identity";
-import type { Loadout, Payout, Purchase } from "./shop";
+import type { ChipIn, Loadout, Payout, Purchase, Tip } from "./shop";
 
 export type TradeFilter = {
   tokenId?: string;
@@ -320,7 +320,7 @@ export async function listPresence(since: number): Promise<Presence[]> {
 
 // ================================================================ Shop ($CHOG cosmetics)
 // Purchases and what each Chog wears are saved by token ID, so they go with the NFT.
-type FileShop = { purchases?: Purchase[]; loadouts?: Record<string, Loadout>; payouts?: Payout[] };
+type FileShop = { purchases?: Purchase[]; loadouts?: Record<string, Loadout>; payouts?: Payout[]; chipins?: ChipIn[]; tips?: Tip[] };
 type PurchaseRow = { id: string; token_id: string; item_id: string; price: number; wallet: string; tx_hash: string; created_at: number };
 
 const shopTableHint = (msg: string) =>
@@ -413,4 +413,86 @@ export async function listPayouts(): Promise<Payout[]> {
   }
   const db = (await readFile()) as FileDB & FileShop;
   return db.payouts ?? [];
+}
+
+// ================================================================ Chip in + tips
+type ChipRow = { id: string; wallet: string; amount: number; tx_hash: string; created_at: number };
+type TipRow = { id: string; token_id: string; week: string; from_wallet: string; to_wallet: string; amount: number; tx_hash: string; created_at: number };
+
+export async function listChipins(f: { since?: number; until?: number; txHash?: string } = {}): Promise<ChipIn[]> {
+  if (usingSupabase) {
+    let q = supabase().from("chipins").select("*").order("created_at", { ascending: true }).limit(5000);
+    if (f.since !== undefined) q = q.gte("created_at", f.since);
+    if (f.until !== undefined) q = q.lte("created_at", f.until);
+    if (f.txHash) q = q.eq("tx_hash", f.txHash.toLowerCase());
+    const { data, error } = await q;
+    if (error) throw new Error(shopTableHint(error.message));
+    return (data as ChipRow[]).map((r) => ({ id: r.id, wallet: r.wallet, amount: Number(r.amount), txHash: r.tx_hash, createdAt: Number(r.created_at) }));
+  }
+  const db = (await readFile()) as FileDB & FileShop;
+  return (db.chipins ?? []).filter(
+    (c) => (f.since === undefined || c.createdAt >= f.since) && (f.until === undefined || c.createdAt <= f.until) && (!f.txHash || c.txHash === f.txHash.toLowerCase()),
+  );
+}
+
+export async function insertChipin(c: ChipIn): Promise<boolean> {
+  const row: ChipRow = { id: c.id, wallet: c.wallet, amount: c.amount, tx_hash: c.txHash.toLowerCase(), created_at: c.createdAt };
+  if (usingSupabase) {
+    const { error } = await supabase().from("chipins").insert(row);
+    if (error && /duplicate|unique/i.test(error.message)) return false;
+    if (error) throw new Error(shopTableHint(error.message));
+    return true;
+  }
+  return withFile((db) => {
+    const x = db as FileDB & FileShop;
+    x.chipins ??= [];
+    if (x.chipins.some((e) => e.txHash === row.tx_hash)) return false;
+    x.chipins.push({ ...c, txHash: row.tx_hash });
+    return true;
+  });
+}
+
+export async function listTips(f: { tokenId?: string; week?: string; txHash?: string } = {}): Promise<Tip[]> {
+  if (usingSupabase) {
+    let q = supabase().from("tips").select("*").order("created_at", { ascending: true }).limit(5000);
+    if (f.tokenId) q = q.eq("token_id", f.tokenId);
+    if (f.week) q = q.eq("week", f.week);
+    if (f.txHash) q = q.eq("tx_hash", f.txHash.toLowerCase());
+    const { data, error } = await q;
+    if (error) throw new Error(shopTableHint(error.message));
+    return (data as TipRow[]).map((r) => ({
+      id: r.id, tokenId: r.token_id, week: r.week, from: r.from_wallet, to: r.to_wallet, amount: Number(r.amount), txHash: r.tx_hash, createdAt: Number(r.created_at),
+    }));
+  }
+  const db = (await readFile()) as FileDB & FileShop;
+  return (db.tips ?? []).filter((t) => (!f.tokenId || t.tokenId === f.tokenId) && (!f.week || t.week === f.week) && (!f.txHash || t.txHash === f.txHash.toLowerCase()));
+}
+
+export async function insertTip(t: Tip): Promise<boolean> {
+  const row: TipRow = {
+    id: t.id, token_id: t.tokenId, week: t.week, from_wallet: t.from, to_wallet: t.to, amount: t.amount, tx_hash: t.txHash.toLowerCase(), created_at: t.createdAt,
+  };
+  if (usingSupabase) {
+    const { error } = await supabase().from("tips").insert(row);
+    if (error && /duplicate|unique/i.test(error.message)) return false;
+    if (error) throw new Error(shopTableHint(error.message));
+    return true;
+  }
+  return withFile((db) => {
+    const x = db as FileDB & FileShop;
+    x.tips ??= [];
+    if (x.tips.some((e) => e.txHash === row.tx_hash)) return false;
+    x.tips.push({ ...t, txHash: row.tx_hash });
+    return true;
+  });
+}
+
+/** True if this payment was already used anywhere (shop, chip in or tip). One payment counts once. */
+export async function paymentUsed(txHash: string): Promise<boolean> {
+  const [p, c, t] = await Promise.all([
+    listPurchases({ txHash }).catch(() => []),
+    listChipins({ txHash }).catch(() => []),
+    listTips({ txHash }).catch(() => []),
+  ]);
+  return p.length + c.length + t.length > 0;
 }

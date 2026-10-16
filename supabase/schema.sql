@@ -114,3 +114,29 @@ create table if not exists public.payouts (
 alter table public.purchases enable row level security;
 alter table public.loadouts enable row level security;
 alter table public.payouts enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Chip in (anyone adds $CHOG to the weekly prize) and tips (straight to the champion). Safe to run again.
+create table if not exists public.chipins (
+  id uuid primary key,
+  wallet text not null,
+  amount numeric not null,
+  tx_hash text not null unique,
+  created_at bigint not null
+);
+create index if not exists chipins_created_idx on public.chipins (created_at);
+
+create table if not exists public.tips (
+  id uuid primary key,
+  token_id text not null,
+  week text not null,
+  from_wallet text not null,
+  to_wallet text not null,
+  amount numeric not null,
+  tx_hash text not null unique,
+  created_at bigint not null
+);
+create index if not exists tips_token_idx on public.tips (token_id, week);
+
+alter table public.chipins enable row level security;
+alter table public.tips enable row level security;

@@ -8,9 +8,12 @@ import { waitForTransactionReceipt } from "@wagmi/core";
 import { erc20Abi, formatUnits, parseUnits } from "viem";
 import { CHOG_TOKEN_ADDRESS } from "@/lib/chog";
 import { monad, wagmiConfig } from "@/lib/wagmi";
-import { TREASURY, itemById, type Loadout, type ShopItem, type Slot } from "@/lib/shop";
+import { HOLDER_BADGE_MIN, TREASURY, holderPrice, itemById, type Loadout, type ShopItem, type Slot } from "@/lib/shop";
 
-export type Pot = { base: number; sales: number; prize: number; burn: number; weekStart: number; endsAt: number };
+export type Pot = {
+  base: number; sales: number; chips: number; prize: number; burn: number; weekStart: number; endsAt: number;
+  topChippers?: { wallet: string; amount: number }[];
+};
 type ShopState = { owned: string[]; loadout: Loadout; pot: Pot; decimals: number | null };
 type Pending = { hash: `0x${string}`; tokenId: string; itemId: string };
 
@@ -77,10 +80,13 @@ export function useShop(tokenId: string | undefined) {
     query: { enabled: !!address },
   });
 
+  // Decimals straight from the chain in the browser (the server's copy is a fallback).
+  const chainDecimals = useReadContract({ address: CHOG_TOKEN_ADDRESS, abi: erc20Abi, functionName: "decimals", chainId: monad.id });
+
   const load = useCallback(async () => {
     if (!tokenId) return;
     const d = await fetch(`/api/shop?tokenId=${tokenId}`, { cache: "no-store" }).then((r) => r.json());
-    setState({ owned: d.owned ?? [], loadout: d.loadout ?? {}, pot: d.pot, decimals: d.decimals ?? null });
+    setState((prev) => ({ owned: d.owned ?? [], loadout: d.loadout ?? {}, pot: d.pot, decimals: d.decimals ?? prev?.decimals ?? null }));
   }, [tokenId]);
 
   useEffect(() => {
@@ -131,13 +137,17 @@ export function useShop(tokenId: string | undefined) {
     async (item: ShopItem) => {
       if (!tokenId || !state) return false;
       setError(null);
-      if (state.decimals === null) {
+      const decimals = state.decimals ?? chainDecimals.data ?? null;
+      if (decimals === null) {
         setError("Couldn't reach Monad to price this. Try again in a moment.");
         return false;
       }
-      const amount = parseUnits(String(item.price), state.decimals);
+      // Holders (10,000+ $CHOG) pay 20% less. The server checks this again.
+      const holder = balance.data !== undefined && Number(formatUnits(balance.data, decimals)) >= HOLDER_BADGE_MIN;
+      const price = holder ? holderPrice(item.price) : item.price;
+      const amount = parseUnits(String(price), decimals);
       if (balance.data !== undefined && balance.data < amount) {
-        setError(`Not enough $CHOG. This costs ${item.price.toLocaleString("en-US")} and this wallet has ${Math.floor(Number(formatUnits(balance.data, state.decimals))).toLocaleString("en-US")}.`);
+        setError(`Not enough $CHOG. This costs ${price.toLocaleString("en-US")} and this wallet has ${Math.floor(Number(formatUnits(balance.data, decimals))).toLocaleString("en-US")}.`);
         return false;
       }
       setBusy(item.id);
@@ -159,7 +169,7 @@ export function useShop(tokenId: string | undefined) {
       }
       return finish(readPending()!);
     },
-    [tokenId, state, balance.data, chainId, switchChainAsync, writeContractAsync, finish],
+    [tokenId, state, chainDecimals.data, balance.data, chainId, switchChainAsync, writeContractAsync, finish],
   );
 
   const equip = useCallback(
@@ -177,6 +187,8 @@ export function useShop(tokenId: string | undefined) {
     [post],
   );
 
-  const chogBalance = balance.data !== undefined && state?.decimals != null ? Math.floor(Number(formatUnits(balance.data, state.decimals))) : null;
-  return { ...state, ready: !!state, chogBalance, busy, step, error, pending, pendingItem: itemById(pending?.itemId), buy, equip, finish, reload: load };
+  const dec = state?.decimals ?? chainDecimals.data ?? null;
+  const chogBalance = balance.data !== undefined && dec !== null ? Math.floor(Number(formatUnits(balance.data, dec))) : null;
+  const holder = chogBalance !== null && chogBalance >= HOLDER_BADGE_MIN;
+  return { ...state, ready: !!state, chogBalance, holder, busy, step, error, pending, pendingItem: itemById(pending?.itemId), buy, equip, finish, reload: load };
 }
