@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { CHOG_SUPPLY, type ChogData } from "@/lib/chog";
 import { monad } from "@/lib/wagmi";
@@ -45,10 +45,40 @@ export default function Home() {
   const isMine = !!(chog && address && chog.owner.toLowerCase() === address.toLowerCase());
   const onMonad = isConnected && chainId === monad.id;
 
-  // Owners default to the real league; everyone else can only practice.
+  // Owners default to the real league (unless they picked practice); everyone else can only practice.
+  const wantMode = useRef<Mode | null>(null);
   useEffect(() => {
-    setMode(isMine ? "league" : "practice");
+    setMode(isMine ? wantMode.current ?? "league" : "practice");
   }, [isMine, chog?.tokenId]);
+  const changeMode = (m: Mode) => {
+    wantMode.current = m;
+    setMode(m);
+  };
+
+  // Remember the open Chog, tab and mode in the web address, so a refresh
+  // (or a shared link) comes straight back here: /?chog=1462&tab=shop
+  const restored = useRef(false);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const id = q.get("chog");
+    const t = q.get("tab") as Tab | null;
+    if (q.get("mode") === "practice") wantMode.current = "practice";
+    if (id && /^\d+$/.test(id) && Number(id) >= 1 && Number(id) <= CHOG_SUPPLY) {
+      load(id, t && ["trade", "duel", "league", "shop"].includes(t) ? t : "trade").finally(() => (restored.current = true));
+    } else restored.current = true;
+  }, []);
+  useEffect(() => {
+    if (!restored.current) return;
+    const q = new URLSearchParams(window.location.search);
+    ["chog", "tab", "mode"].forEach((k) => q.delete(k));
+    if (chog) {
+      q.set("chog", chog.tokenId);
+      if (tab !== "trade") q.set("tab", tab);
+      if (isMine && mode === "practice") q.set("mode", "practice");
+    }
+    const url = `${window.location.pathname}${q.toString() ? `?${q}` : ""}${window.location.hash}`;
+    if (url !== `${window.location.pathname}${window.location.search}${window.location.hash}`) window.history.replaceState(window.history.state, "", url);
+  }, [chog, tab, mode, isMine]);
 
   // Connecting a wallet with no Chog picked yet opens the Chog picker.
   useEffect(() => {
@@ -88,13 +118,13 @@ export default function Home() {
   const identity = chog ? identityFor(chog.tokenId, chog.traits) : null;
   const duelMaxMult = shown?.mode === "league" ? league.stats?.summary.level.maxMultiplier ?? 1.5 : 5;
 
-  async function load(id: string) {
+  async function load(id: string, openTab: Tab = "trade") {
     setLoading(true);
     setErr(null);
     try {
       setChog(await fetchChog(id));
       setPicker(false);
-      setTab("trade");
+      setTab(openTab);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -104,6 +134,7 @@ export default function Home() {
   }
 
   function select(c: ChogData) {
+    wantMode.current = null;
     setChog(c);
     setErr(null);
     setPicker(false);
@@ -162,7 +193,7 @@ export default function Home() {
             lastSettled={active.stats?.history[0]}
             crowned={leaderId === chog.tokenId}
             onSwitch={() => setPicker(true)}
-            onMode={setMode}
+            onMode={changeMode}
             leagueLocked={!isMine}
             loadout={tab === "shop" ? { ...shop.loadout, ...preview } : shop.loadout}
           />
