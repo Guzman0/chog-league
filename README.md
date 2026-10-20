@@ -12,7 +12,8 @@
 <p align="center">
   <a href="https://chog-league.vercel.app"><b>▶ Play free</b></a> ·
   <a href="https://youtu.be/-P0y_3-3mhw"><b>🎬 Demo video (2:40)</b></a> ·
-  Built for <a href="https://chogathon.chog.xyz">Chogathon 2026</a> on Monad
+  Built for <a href="https://chogathon.chog.xyz">Chogathon 2026</a> on Monad<br><br>
+  <a href="https://github.com/Guzman0/chog-league/actions/workflows/ci.yml"><img src="https://github.com/Guzman0/chog-league/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
 ---

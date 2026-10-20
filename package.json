@@ -1,12 +1,24 @@
 {
   "name": "chog-league",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "description": "Chog League: your Chog NFT is a trading account. Call crypto prices higher or lower, level up on skill, duel holders and win the weekly $CHOG prize. Built for Chogathon 2026 on Monad.",
+  "homepage": "https://chog-league.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Guzman0/chog-league.git"
+  },
+  "author": "Guzman (https://x.com/the_first_guz)",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "music": "npx --yes tsx scripts/make-music.ts"
   },
   "dependencies": {
     "@fontsource/lilita-one": "^5.3.0",
