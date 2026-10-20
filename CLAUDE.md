@@ -9,6 +9,8 @@ Judging: Novelty 30%, Fun 20%, Retention 20%, Clarity 15%, Execution 15%, $CHOG 
   (presets or any 1-decimal value 1x–5x, capped by level; target uses zFor(m) = invNorm(m/(1+m))).
 - Bigger multiplier = bigger payout, but the target price is further away. Targets are set so
   win chance ≈ 1/(1+multiplier), using each market's recent 1-minute volatility (fair game).
+- Cash out (`/api/trade/cashout`, `cashOutValue` in game.ts): close a live call early for chance-of-winning × payout × 0.98
+  (sigma taken from the call's own target), not in the last 10 s, not in duels. Status 'cashed' = neither win nor loss.
 - Level = career net wins (wins − losses). Levels unlock bigger multipliers (L1 1.5x … L5 5x).
 - Weekly league: every Chog starts each week (Monday 00:00 UTC) with $1,000 demo; ranked by balance.
 - Everything is stored against the Chog's **token ID, never the wallet**, so level and record

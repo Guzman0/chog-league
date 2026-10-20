@@ -120,7 +120,7 @@ export default function TradePanel({
           <div data-tour="chart">
             <PriceChart ticks={ticks} lines={lines} trades={live} avatar={chogImage} height={260} />
           </div>
-          <CallStatus trades={live} price={price} />
+          <CallStatus trades={live} price={price} sigma={sigma} onChanged={onTraded} />
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-[var(--muted)]">Real {market}/USD prices from Coinbase. Results use Coinbase&apos;s 1-minute closing price.</p>
             <button type="button" onClick={() => setTouring(true)} className="btn btn-ghost px-2.5 py-1 text-xs">❓ Show me how</button>
@@ -209,7 +209,7 @@ export default function TradePanel({
         </div>
       </section>
 
-      <Positions practice={practice} open={open} history={history} chogName={chogName} />
+      <Positions practice={practice} open={open} history={history} chogName={chogName} onChanged={onTraded} />
       <Tour steps={tourSteps(practice, identity.home, POWERS[identity.power].name)} open={touring} onClose={() => setTouring(false)} />
     </div>
   );

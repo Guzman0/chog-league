@@ -47,7 +47,8 @@ function Chip({ bg, color = C.ink, children }: { bg: string; color?: string; chi
 export async function resultCard(t: Trade) {
   const won = t.status === "won";
   const lost = t.status === "lost";
-  const accent = won ? C.green : lost ? C.red : C.sky;
+  const cashed = t.status === "cashed";
+  const accent = won ? C.green : lost ? C.red : cashed ? C.banana : C.sky;
   const size = 380;
   const [lilita, nunito900, nunito800, art] = await Promise.all([
     font("LilitaOne.woff"),
@@ -113,7 +114,7 @@ export async function resultCard(t: Trade) {
             padding: "2px 22px",
           }}
         >
-          {won ? "WIN" : lost ? "REKT" : "PUSH"}
+          {won ? "WIN" : lost ? "REKT" : cashed ? "CASHED OUT" : "PUSH"}
         </div>
 
         {/* Right: who, the line, the number, the call */}

@@ -5,6 +5,8 @@ import type { Trade } from "./game";
 const WIN = ["Called it.", "Chog sees the future.", "Too easy.", "Printing (demo) money.", "Big brain Chog.", "Read the chart like a book."];
 const LOSS = ["Got rekt.", "Rekt. Shake it off.", "The chart said no.", "Paper hands, paper money.", "Chog needs a nap.", "Wrong way, Chog."];
 const PUSH = ["Dead even. Chog shrugs."];
+const CASHED_UP = ["Took the money and ran.", "Banked it early.", "In and out. Clean."];
+const CASHED_DOWN = ["Took the loss, moved on.", "Cut it early. Smart Chog.", "Lived to call again."];
 
 function pick(list: string[], seed: string) {
   let h = 0;
@@ -12,7 +14,8 @@ function pick(list: string[], seed: string) {
   return list[h % list.length];
 }
 
-export function quipFor(t: Pick<Trade, "id" | "status">) {
+export function quipFor(t: Pick<Trade, "id" | "status" | "pnl">) {
+  if (t.status === "cashed") return pick((t.pnl ?? 0) >= 0 ? CASHED_UP : CASHED_DOWN, t.id);
   return pick(t.status === "won" ? WIN : t.status === "lost" ? LOSS : PUSH, t.id);
 }
 

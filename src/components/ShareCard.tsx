@@ -26,8 +26,8 @@ function ShareModal({ trade, chogName, onClose }: { trade: Trade; chogName?: str
   const [note, setNote] = useState<string | null>(null);
   const won = trade.status === "won";
   const who = chogName || `My Chog`;
-  const text = `${who}: ${quipFor(trade)} ${pnlText(trade)} calling ${trade.market} ${trade.direction === "up" ? "higher" : "lower"} at ${trade.multiplier}x${won ? " 😎" : " 😭"}\n\nCall it with your Chog 👇\n${SITE}`;
-  const fileName = `chog-${trade.tokenId}-${won ? "win" : trade.status === "lost" ? "rekt" : "push"}.png`;
+  const text = `${who}: ${quipFor(trade)} ${pnlText(trade)} ${trade.status === "cashed" ? "cashing out" : "calling"} ${trade.market} ${trade.direction === "up" ? "higher" : "lower"} at ${trade.multiplier}x${won || (trade.status === "cashed" && (trade.pnl ?? 0) >= 0) ? " 😎" : trade.status === "cashed" ? " 🏃" : " 😭"}\n\nCall it with your Chog 👇\n${SITE}`;
+  const fileName = `chog-${trade.tokenId}-${won ? "win" : trade.status === "lost" ? "rekt" : trade.status}.png`;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();

@@ -182,8 +182,8 @@ function Calls({ tokenId, practice, chogName }: { tokenId: string; practice: boo
               </span>
             </span>
             <span className="flex items-center gap-2">
-              <b className={t.status === "won" ? "text-[var(--green)]" : t.status === "lost" ? "text-[var(--red)]" : "text-[var(--muted)]"}>
-                {t.status === "won" ? `Won ${money(t.pnl ?? 0)}` : t.status === "lost" ? `Lost ${money(Math.abs(t.pnl ?? t.amount)).slice(1)}` : "Push"}
+              <b className={t.status === "won" ? "text-[var(--green)]" : t.status === "lost" ? "text-[var(--red)]" : t.status === "cashed" ? "text-[var(--banana)]" : "text-[var(--muted)]"}>
+                {t.status === "won" ? `Won ${money(t.pnl ?? 0)}` : t.status === "lost" ? `Lost ${money(Math.abs(t.pnl ?? t.amount)).slice(1)}` : t.status === "cashed" ? `Cashed out ${money(t.pnl ?? 0)}` : "Push"}
               </b>
               <ShareCard trade={t} chogName={chogName} label="📸" />
             </span>

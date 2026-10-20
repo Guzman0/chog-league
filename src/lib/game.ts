@@ -114,7 +114,7 @@ export function expiryFor(nowMs: number, minutes: number) {
 }
 
 export type Direction = "up" | "down";
-export type TradeStatus = "open" | "won" | "lost" | "push";
+export type TradeStatus = "open" | "won" | "lost" | "push" | "cashed";
 
 export type Trade = {
   id: string;
@@ -216,7 +216,7 @@ export function summarize(tokenId: string, trades: Trade[], nowMs = Date.now(), 
   let streak = 0;
   for (let i = settled.length - 1; i >= 0; i--) {
     const s = settled[i].status;
-    if (s === "push") continue;
+    if (s === "push" || s === "cashed") continue;
     if (streak === 0) streak = s === "won" ? 1 : -1;
     else if ((streak > 0 && s === "won") || (streak < 0 && s === "lost")) streak += streak > 0 ? 1 : -1;
     else break;
@@ -254,4 +254,48 @@ export function formatPrice(n: number) {
   if (n >= 1000) return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (n >= 1) return n.toFixed(3);
   return n.toFixed(6);
+}
+
+// ---------------------------------------------------------------- Cash out
+// A live call can be closed early for what it's worth right now: its chance of
+// winning from here (same bell-curve maths that set the target) times what it
+// pays, minus a small exit fee. Cashing out the moment you open gets your stake
+// back (less the fee), so it can't be used to dodge risk for free. A cash-out
+// counts as neither a win nor a loss for the level.
+export const CASHOUT_FEE = 0.02;
+export const CASHOUT_CUTOFF_MS = 10_000; // the result is about to be decided
+
+// Standard normal CDF (Abramowitz & Stegun 7.1.26, error < 1.5e-7).
+function normalCdf(x: number) {
+  const t = 1 / (1 + 0.3275911 * Math.abs(x) / Math.SQRT2);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-(x * x) / 2);
+  return x >= 0 ? (1 + y) / 2 : (1 - y) / 2;
+}
+
+// The call's length as picked (1, 2, 3 or 5 min); calls end on whole minutes.
+export function tradeMinutes(t: Pick<Trade, "openedAt" | "expiresAt">) {
+  return Math.max(1, Math.round((t.expiresAt - t.openedAt) / 60000));
+}
+
+// The volatility the target was set with (falls back to today's for 1x calls).
+function openSigma(t: Trade, fallback: number) {
+  const z = zFor(t.multiplier);
+  const move = Math.abs(t.targetPrice / t.entryPrice - 1);
+  return z > 1e-6 && move > 0 ? move / (z * Math.sqrt(tradeMinutes(t))) : fallback;
+}
+
+export function winChanceNow(t: Trade, price: number, sigmaNow: number, nowMs: number) {
+  const left = Math.max(0, t.expiresAt - nowMs);
+  const minutesLeft = (left / (t.expiresAt - t.openedAt)) * tradeMinutes(t);
+  const ahead = t.direction === "up" ? price > t.targetPrice : price < t.targetPrice;
+  if (minutesLeft <= 0) return ahead ? 1 : 0;
+  const z = (t.targetPrice / price - 1) / (openSigma(t, sigmaNow) * Math.sqrt(minutesLeft));
+  return t.direction === "up" ? 1 - normalCdf(z) : normalCdf(z);
+}
+
+export function cashOutValue(t: Trade, price: number, sigmaNow: number, nowMs: number) {
+  const p = winChanceNow(t, price, sigmaNow, nowMs);
+  const ifWin = winPayout(t.amount, t.multiplier, t.power);
+  const ifLose = t.power === "parachute" ? t.amount / 2 : 0;
+  return Math.max(0, Math.floor((p * ifWin + (1 - p) * ifLose) * (1 - CASHOUT_FEE) * 100) / 100);
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatPrice, winPayout, type Trade } from "@/lib/game";
+import { CASHOUT_CUTOFF_MS, cashOutValue, formatPrice, winPayout, type Trade } from "@/lib/game";
 import type { Tick } from "./usePriceStream";
+import { CashOut } from "./Positions";
 
 export type ChartLine = { price: number; label: string; color: string; dashed?: boolean };
 
@@ -213,7 +214,7 @@ export default function PriceChart({
 }
 
 // Under the chart: one line per live call saying whether it's winning right now.
-export function CallStatus({ trades, price }: { trades: Trade[]; price: number | null }) {
+export function CallStatus({ trades, price, sigma, onChanged }: { trades: Trade[]; price: number | null; sigma?: number | null; onChanged?: () => void }) {
   const now = useNow();
   if (!trades.length || !price) return null;
   return (
@@ -238,7 +239,9 @@ export function CallStatus({ trades, price }: { trades: Trade[]; price: number |
             </span>
             <span className="num">
               🏁 {clock(t.expiresAt - now)} · {ok ? `+$${Math.round((winPayout(t.amount, t.multiplier, t.power) - t.amount) * 100) / 100}` : `$${t.amount} at stake`}
+              {sigma && t.expiresAt - now >= CASHOUT_CUTOFF_MS ? <span className="opacity-75"> · worth ≈ ${cashOutValue(t, price, sigma, now).toFixed(2)} now</span> : null}
             </span>
+            <CashOut t={t} now={now} onDone={onChanged} />
           </li>
         );
       })}

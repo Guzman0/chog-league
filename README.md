@@ -58,7 +58,7 @@ Anyone can try it in **Practice mode** with any Chog and no wallet. Practice nev
 
 | | |
 | --- | --- |
-| 📈 **Calls** | Higher or lower on BTC, ETH, SOL or MON · 1, 2, 3 or 5 minutes · stake $1–$500 · multiplier 1x–5x · up to 5 open at once · locked until the timer ends, to keep the odds fair |
+| 📈 **Calls** | Higher or lower on BTC, ETH, SOL or MON · 1, 2, 3 or 5 minutes · stake $1–$500 · multiplier 1x–5x · up to 5 open at once · **cash out** any time before the last 10 seconds for what the call is worth right now (2% exit fee; counts as neither a win nor a loss for the level) |
 | 🧭 **Guided start** | A 47-second "How to play" clip on the home page, then a step-by-step guide that lights up each control and walks a first call. Replay it any time with "Show me how". |
 | 📊 **Live chart** | Your Chog rides the price, glowing green when winning and red when not. Shaded win zone, entry and target lines, a 🏁 finish-flag countdown, "winning! / needs +$X" under the chart, and a **LIVE · Prices by Coinbase** badge. |
 | 📸 **Share cards** | Every finished call makes an image of your Chog with a WIN or REKT stamp, a funny line and the result. Share, save or post on X. Built on the server from the saved trade, so it can't be faked. |

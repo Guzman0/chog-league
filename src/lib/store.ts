@@ -184,6 +184,29 @@ export async function settleTrades(updates: { id: string; patch: TradePatch }[])
   });
 }
 
+// Close one open call early (cash out). Returns false if it already ended.
+export async function cashOutTrade(id: string, patch: { settlePrice: number; payout: number; pnl: number; closedAt: number }): Promise<boolean> {
+  if (usingSupabase) {
+    const { data, error } = await supabase()
+      .from("trades")
+      .update({ status: "cashed", settle_price: patch.settlePrice, payout: patch.payout, pnl: patch.pnl, expires_at: patch.closedAt })
+      .eq("id", id)
+      .eq("status", "open")
+      .select("id");
+    if (error && /check constraint|status_check/i.test(error.message)) {
+      throw new Error("Cash out needs a one-time database update (see supabase/schema.sql).");
+    }
+    if (error) throw new Error(`Database error: ${error.message}`);
+    return (data?.length ?? 0) > 0;
+  }
+  return withFile((db) => {
+    const t = db.trades.find((x) => x.id === id);
+    if (!t || t.status !== "open") return false;
+    Object.assign(t, { status: "cashed", settlePrice: patch.settlePrice, payout: patch.payout, pnl: patch.pnl, expiresAt: patch.closedAt });
+    return true;
+  });
+}
+
 // ================================================================ Duels
 
 export type DuelFilter = { id?: string; statuses?: DuelStatus[]; tokenIds?: string[]; wallet?: string; practiceId?: string; acceptedSince?: number };

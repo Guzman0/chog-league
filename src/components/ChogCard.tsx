@@ -19,6 +19,7 @@ function mood(s: ChogSummary | undefined, crowned: boolean) {
   if (s.lastResult === "won") return { face: "🚀", line: "LFG! Called it." };
   if (s.streak <= -3) return { face: "🥶", line: `${-s.streak} losses in a row. Touch grass?` };
   if (s.lastResult === "lost") return { face: "😿", line: "Rekt. Shake it off." };
+  if (s.lastResult === "cashed") return { face: "🏃", line: "Cashed out. Live to call again." };
   return { face: "😐", line: "Even. Next one." };
 }
 

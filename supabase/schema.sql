@@ -140,3 +140,8 @@ create index if not exists tips_token_idx on public.tips (token_id, week);
 
 alter table public.chipins enable row level security;
 alter table public.tips enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- Cash out: a call closed early gets status 'cashed'. Safe to run again.
+alter table public.trades drop constraint if exists trades_status_check;
+alter table public.trades add constraint trades_status_check check (status in ('open', 'won', 'lost', 'push', 'cashed'));

@@ -27,7 +27,7 @@ export function useReaction(lastSettled: Trade | undefined): Reaction {
       seen.current = id; // first load: remember, don't celebrate old trades
       return;
     }
-    if (!lastSettled || id === seen.current || lastSettled.status === "push") {
+    if (!lastSettled || id === seen.current || lastSettled.status === "push" || lastSettled.status === "cashed") {
       seen.current = id;
       return;
     }
