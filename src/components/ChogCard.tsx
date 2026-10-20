@@ -24,7 +24,7 @@ function mood(s: ChogSummary | undefined, crowned: boolean) {
 
 // Always-visible strip: the Chog (reacting), its level, mood and balance.
 export function ChogBar({
-  chog, identity, powerUsed, crowns = 0, isMine, mode, summary, lastSettled, crowned, onSwitch, onMode, leagueLocked, loadout = {},
+  chog, identity, powerUsed, crowns = 0, isMine, mode, summary, lastSettled, crowned, onSwitch, onMode, leagueLocked, loadout = {}, onHistory,
 }: {
   chog: ChogData;
   identity: ChogIdentity;
@@ -39,6 +39,7 @@ export function ChogBar({
   onMode: (m: "league" | "practice") => void;
   leagueLocked: boolean;
   loadout?: Loadout; // what it's wearing from the $CHOG shop
+  onHistory?: () => void;
 }) {
   const reaction = useReaction(lastSettled);
   const m = mood(summary, crowned);
@@ -92,7 +93,7 @@ export function ChogBar({
           <p className="text-xs font-extrabold text-[var(--muted)]">{mode === "practice" ? "Practice balance" : "League balance"}</p>
           <p className="display num text-3xl text-[var(--banana)]">{summary ? `$${summary.weekBalance.toLocaleString()}` : "…"}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <div className="flex rounded-xl border-2 border-[var(--ink)] bg-[var(--panel-2)] p-0.5 text-sm" role="group" aria-label="Mode">
             <button type="button" aria-pressed={mode === "league"} disabled={leagueLocked} onClick={() => onMode("league")} title={leagueLocked ? "Only this Chog's owner can play in the league" : undefined}
               className={`rounded-lg px-3 py-1 font-extrabold disabled:opacity-50 ${mode === "league" ? "bg-[var(--banana)] text-[var(--ink)]" : ""}`}>
@@ -103,6 +104,9 @@ export function ChogBar({
               Practice
             </button>
           </div>
+          {onHistory && (
+            <button type="button" className="btn btn-ghost px-3 py-1 text-sm" onClick={onHistory} title="Every call and duel this Chog has played">📜 History</button>
+          )}
           <button type="button" className="btn btn-ghost px-3 py-1 text-sm" onClick={onSwitch}>Switch Chog</button>
         </div>
       </div>

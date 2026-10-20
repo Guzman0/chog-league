@@ -9,6 +9,7 @@ import WalletButton from "@/components/WalletButton";
 import { fetchChog } from "@/components/MyChogs";
 import { ChogBar, ChogRecord } from "@/components/ChogCard";
 import TradePanel from "@/components/TradePanel";
+import HistoryPanel from "@/components/HistoryPanel";
 import Leaderboard, { crownsFor, useChampions } from "@/components/Leaderboard";
 import Landing from "@/components/Landing";
 import ChogPicker from "@/components/ChogPicker";
@@ -107,6 +108,7 @@ export default function Home() {
   const duels = useDuels(true);
   usePresence(chog, mode, canDuel);
   const [shownDuel, setShownDuel] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   useEffect(() => {
     if (duels.active) {
       setShownDuel(duels.active.id);
@@ -197,7 +199,20 @@ export default function Home() {
             onMode={changeMode}
             leagueLocked={!isMine}
             loadout={tab === "shop" ? { ...shop.loadout, ...preview } : shop.loadout}
+            onHistory={() => setHistoryOpen(true)}
           />
+          {historyOpen && (
+            <HistoryPanel
+              key={`history-${chog.tokenId}-${mode}`}
+              chog={chog}
+              mode={mode}
+              onClose={() => setHistoryOpen(false)}
+              onOpenDuel={(id) => {
+                setShownDuel(id);
+                setTab("duel");
+              }}
+            />
+          )}
 
           <nav className="flex gap-1.5 sm:gap-2" aria-label="Sections">
             {([
