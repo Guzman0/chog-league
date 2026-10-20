@@ -9,6 +9,7 @@
     "url": "https://github.com/Guzman0/chog-league.git"
   },
   "author": "Guzman (https://x.com/the_first_guz)",
+  "license": "MIT",
   "engines": {
     "node": ">=20"
   },

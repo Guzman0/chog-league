@@ -43,10 +43,6 @@ Judging: Novelty 30%, Fun 20%, Retention 20%, Clarity 15%, Execution 15%, $CHOG 
   max stake = half balance, max 3 league duels/week per pair, bot duels practice-only.
   Lobby = `presence` table. Duels advance lazily on read with a version check.
 
-## The builder
-Guzman is new to coding. Explain changes in plain words, keep steps small, and give
-exact Windows / VS Code terminal commands when he needs to run something.
-
 ## Stack
 - Next.js 15 (App Router, TypeScript, Tailwind v4), wagmi v2 + viem (browser wallet only)
 - Monad mainnet, chain ID 143, RPC https://rpc.monad.xyz

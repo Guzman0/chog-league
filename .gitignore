@@ -43,3 +43,6 @@ next-env.d.ts
 
 # local game data (trades, session secret)
 /data
+
+# private Claude Code notes
+CLAUDE.local.md

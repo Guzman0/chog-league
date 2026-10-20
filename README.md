@@ -157,3 +157,5 @@ Each Monday after the reset:
 Built solo by **Guzman** ([@the_first_guz](https://x.com/the_first_guz)) for Chogathon 2026, with Claude Code.
 Chog art and traits come from the Chog Genesis collection's own
 metadata. Fan-made for the hackathon; not an official Chog product.
+
+Code released under the [MIT License](LICENSE). Chog artwork belongs to its owners and is not covered by this licence.
