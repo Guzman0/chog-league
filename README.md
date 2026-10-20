@@ -154,5 +154,5 @@ Each Monday after the reset:
 ## Credits
 
 Built solo by **Guzman** ([@the_first_guz](https://x.com/the_first_guz)) for Chogathon 2026, with Claude Code.
-The higher/lower format is inspired by Manic.trade. Chog art and traits come from the Chog Genesis collection's own
+Chog art and traits come from the Chog Genesis collection's own
 metadata. Fan-made for the hackathon; not an official Chog product.
