@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import ConnectButton from "./ConnectButton";
 
@@ -62,6 +63,8 @@ export default function Landing({ onPractice, loading }: { onPractice: () => voi
         <p className="mt-3 text-sm text-[var(--muted)]">No wallet needed to play practice. Chog holders connect to play the league.</p>
       </div>
 
+      <HowToPlay />
+
       <div className="mx-auto mt-12 grid max-w-5xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <Feature tilt="-1.5deg" title="Call it" emoji="📈">Higher or lower in 1 to 5 minutes. Bigger multiplier, bigger win, harder target.</Feature>
         <Feature tilt="1.5deg" title="No two Chogs alike" emoji="🧬">Its traits give it a home market and a daily power: Shield, Double Up or Parachute. Same fair odds, different play.</Feature>
@@ -78,6 +81,59 @@ function Feature({ title, emoji, tilt, children }: { title: string; emoji: strin
       <p className="mb-1 text-3xl" aria-hidden="true">{emoji}</p>
       <h3 className="mb-1 text-2xl">{title}</h3>
       <p className="text-sm text-[var(--muted)]">{children}</p>
+    </div>
+  );
+}
+
+// A 47-second how-to clip (the demo video at 1.5x speed). Plays muted on a loop; tap for sound.
+function HowToPlay() {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [muted, setMuted] = useState(true);
+
+  const toggleSound = () => {
+    const v = ref.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    if (!v.muted) {
+      v.currentTime = 0;
+      v.play().catch(() => {});
+    }
+    setMuted(v.muted);
+  };
+
+  return (
+    <div className="mx-auto mt-10 max-w-3xl">
+      <h2 className="mb-1 text-center text-3xl sm:text-4xl">How to play</h2>
+      <p className="mb-4 text-center text-sm text-[var(--muted)]">
+        Pick a Chog → call higher or lower → win to level up → duel and climb the weekly league.
+      </p>
+      <div className="panel relative overflow-hidden !p-0" style={{ transform: "rotate(-0.6deg)" }}>
+        <video
+          ref={ref}
+          src="/demo/how-to-play.mp4"
+          poster="/demo/how-to-play.jpg"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className="block aspect-video w-full"
+          aria-label="Short video showing how to play Chog League"
+        />
+        <button
+          type="button"
+          onClick={toggleSound}
+          className="btn btn-banana absolute bottom-2 right-2 px-2.5 py-1 text-xs sm:bottom-3 sm:right-3 sm:px-3 sm:py-1.5 sm:text-sm"
+        >
+          {muted ? "🔊 Tap for sound" : "🔇 Mute"}
+        </button>
+      </div>
+      <p className="mt-3 text-center text-sm text-[var(--muted)]">
+        Shown at 1.5x speed.{" "}
+        <a href="https://youtu.be/-P0y_3-3mhw" target="_blank" rel="noreferrer" className="underline">
+          Watch the full 2:40 video
+        </a>
+      </p>
     </div>
   );
 }
