@@ -6,9 +6,9 @@ export const runtime = "nodejs";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return new Response("Bad card link", { status: 400 });
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return new Response("Bad card link", { status: 400, headers: { "cache-control": "no-store" } });
   const trade = await getTrade(id).catch(() => null);
-  if (!trade || trade.status === "open" || trade.duelId) return new Response("No finished call with that ID", { status: 404 });
+  if (!trade || trade.status === "open" || trade.duelId) return new Response("No finished call with that ID", { status: 404, headers: { "cache-control": "no-store" } });
 
   const img = await resultCard(trade);
   const headers = new Headers(img.headers);
