@@ -136,6 +136,15 @@ export async function listTrades(f: TradeFilter = {}): Promise<Trade[]> {
   return (await readFile()).trades.filter((t) => matches(t, f)).sort((a, b) => a.openedAt - b.openedAt);
 }
 
+export async function getTrade(id: string): Promise<Trade | null> {
+  if (usingSupabase) {
+    const { data, error } = await supabase().from("trades").select("*").eq("id", id).maybeSingle();
+    if (error) throw new Error(`Database error: ${error.message}`);
+    return data ? fromRow(data as Row) : null;
+  }
+  return (await readFile()).trades.find((t) => t.id === id) ?? null;
+}
+
 export async function insertTrade(t: Trade): Promise<void> {
   if (usingSupabase) {
     const { error } = await supabase().from("trades").insert(toRow(t));

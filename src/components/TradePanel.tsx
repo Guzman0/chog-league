@@ -7,14 +7,15 @@ import {
 } from "@/lib/game";
 import { POWERS, multiplierCap, nextRecharge, type ChogIdentity } from "@/lib/identity";
 import { play } from "@/lib/sound";
-import PriceChart, { type ChartLine } from "./PriceChart";
+import PriceChart, { CallStatus, type ChartLine } from "./PriceChart";
+import Tour, { tourSeen, type TourStep } from "./Tour";
 import Positions from "./Positions";
 import { CustomNumber, Field, Pill } from "./ui";
 import { usePriceStream } from "./usePriceStream";
 
 // The Trade tab: live chart on the left, controls on the right, positions below.
 export default function TradePanel({
-  tokenId, identity, summary, open, history, onTraded, practice = false,
+  tokenId, identity, summary, open, history, onTraded, practice = false, chogImage, chogName,
 }: {
   tokenId: string;
   identity: ChogIdentity;
@@ -23,6 +24,8 @@ export default function TradePanel({
   history: Trade[];
   onTraded: () => void;
   practice?: boolean;
+  chogImage?: string | null;
+  chogName?: string;
 }) {
   const [market, setMarket] = useState<Market>(identity.home);
   const [armed, setArmed] = useState(false); // use the Chog's power on the next call
@@ -33,6 +36,14 @@ export default function TradePanel({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const { ticks, price } = usePriceStream(market);
+  const [touring, setTouring] = useState(false);
+
+  // First visit: walk through a call step by step (once; "Show me how" replays it).
+  useEffect(() => {
+    if (tourSeen()) return;
+    const id = setTimeout(() => setTouring(true), 900);
+    return () => clearTimeout(id);
+  }, []);
 
   // Each market's typical 1-minute move sets how far targets sit (from our server).
   useEffect(() => {
@@ -62,13 +73,9 @@ export default function TradePanel({
   const tooBig = multiplier !== null && multiplier > maxMult;
   const canTrade = !!targets && !busy && amount !== null && amount <= balance && !tooBig;
 
+  const live = open.filter((t) => t.market === market);
   const lines: ChartLine[] = [
-    ...open.filter((t) => t.market === market).map((t) => ({
-      price: t.targetPrice,
-      label: `${t.direction === "up" ? "▲" : "▼"} $${t.amount} @ ${t.multiplier}x`,
-      color: t.direction === "up" ? "var(--green)" : "var(--red)",
-    })),
-    ...(targets && multiplier !== null && multiplier > 1
+    ...(live.length === 0 && targets && multiplier !== null && multiplier > 1
       ? [
           { price: targets.up, label: "Higher above", color: "#a8f0cf", dashed: true },
           { price: targets.down, label: "Lower below", color: "#ffb3c2", dashed: true },
@@ -103,29 +110,40 @@ export default function TradePanel({
       <section className="panel grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <div>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex gap-2">
+            <div className="flex gap-2" data-tour="markets">
               {MARKETS.map((m) => (
                 <Pill key={m} on={m === market} onClick={() => setMarket(m)} title={m === identity.home ? "Your Chog's home market" : undefined}>{m}{m === identity.home ? " 🏠" : ""}</Pill>
               ))}
             </div>
             <p className="display num text-3xl">{price ? `$${formatPrice(price)}` : "…"}</p>
           </div>
-          <PriceChart ticks={ticks} lines={lines} height={240} />
-          <p className="mt-2 text-xs text-[var(--muted)]">Live {market}/USD, last 2 minutes. Results use the exchange&apos;s closing price.</p>
+          <div data-tour="chart">
+            <PriceChart ticks={ticks} lines={lines} trades={live} avatar={chogImage} height={260} />
+          </div>
+          <CallStatus trades={live} price={price} />
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-[var(--muted)]">Real {market}/USD prices from Coinbase. Results use Coinbase&apos;s 1-minute closing price.</p>
+            <button type="button" onClick={() => setTouring(true)} className="btn btn-ghost px-2.5 py-1 text-xs">❓ Show me how</button>
+          </div>
         </div>
 
         <div>
+          <div data-tour="duration">
           <Field label="Ends in">
             {DURATIONS_MIN.map((d) => (
               <Pill key={d} on={d === minutes} onClick={() => setMinutes(d)}>{d} min</Pill>
             ))}
           </Field>
+          </div>
+          <div data-tour="amount">
           <Field label={`Amount (you have $${balance.toLocaleString()})`}>
             {AMOUNTS.map((a) => (
               <Pill key={a} on={a === amount} onClick={() => setAmount(a)} disabled={a > balance}>${a}</Pill>
             ))}
             <CustomNumber label="Custom amount in dollars" value={amount} presets={AMOUNTS} onChange={setAmount} prefix="$" min={MIN_AMOUNT} max={Math.min(MAX_AMOUNT, Math.max(MIN_AMOUNT, Math.floor(balance)))} />
           </Field>
+          </div>
+          <div data-tour="multiplier">
           <Field label="Multiplier: bigger payout, harder target">
             {MULTIPLIERS.map((x) => {
               const locked = x > maxMult;
@@ -138,6 +156,7 @@ export default function TradePanel({
             })}
             <CustomNumber label="Custom multiplier" value={multiplier} presets={MULTIPLIERS} onChange={setMultiplier} suffix="x" decimals={1} min={MIN_MULTIPLIER} max={maxMult} />
           </Field>
+          </div>
           {!practice && (
             <p className="-mt-1 mb-3 text-xs text-[var(--muted)]">
               {market === identity.home
@@ -149,6 +168,7 @@ export default function TradePanel({
 
           <button
             type="button"
+            data-tour="power"
             aria-pressed={usePower}
             disabled={!powerReady}
             onClick={() => setArmed((a) => !a)}
@@ -172,7 +192,7 @@ export default function TradePanel({
             </span>
           </button>
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-2 gap-3" data-tour="go">
             <button type="button" onClick={() => trade("up")} disabled={!canTrade} className="btn btn-up p-4 text-left">
               <span className="display block text-2xl">▲ Higher</span>
               <span className="block text-xs font-extrabold">{targets ? `above $${formatPrice(targets.up)}` : "…"}</span>
@@ -189,7 +209,20 @@ export default function TradePanel({
         </div>
       </section>
 
-      <Positions practice={practice} open={open} history={history} />
+      <Positions practice={practice} open={open} history={history} chogName={chogName} />
+      <Tour steps={tourSteps(practice, identity.home, POWERS[identity.power].name)} open={touring} onClose={() => setTouring(false)} />
     </div>
   );
+}
+
+function tourSteps(practice: boolean, home: Market, power: string): TourStep[] {
+  return [
+    { target: "markets", title: "1. Pick a market", body: `Bitcoin, Ether, Solana or MON. 🏠 ${home} is your Chog's home market, where it can use a bigger multiplier. Tap one.`, advanceOnClick: true },
+    { target: "chart", title: "2. Watch the live price", body: "Real prices from Coinbase. After you call it, your target line and a 🏁 finish flag appear here, and your Chog rides the price." },
+    { target: "duration", title: "3. Pick how long", body: "Your call is decided when the timer runs out: 1, 2, 3 or 5 minutes. Short is more exciting. Tap one.", advanceOnClick: true },
+    { target: "amount", title: "4. Pick an amount", body: practice ? "Practice money, so go wild. Nothing real is ever at risk." : "Demo money from this week's $1,000. Nothing real is ever at risk. Tap one.", advanceOnClick: true },
+    { target: "multiplier", title: "5. Pick a multiplier", body: "Like leverage, but fair: a higher multiplier pays more, and the target moves further away so it's harder to hit. 1x is a coin flip. New? Start with 1x.", advanceOnClick: true },
+    { target: "power", title: `6. Your Chog's power: ${power}`, body: "Optional, once a day. Tap it to use it on your next call, or skip it." },
+    { target: "go", title: "7. Call it!", body: "Think the price ends above the green number? Tap ▲ Higher. Below the red one? Tap ▼ Lower. Then watch the chart.", advanceOnClick: true },
+  ];
 }

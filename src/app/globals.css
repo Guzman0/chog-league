@@ -240,3 +240,10 @@ h1, h2, h3, .display {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Live price chart */
+@keyframes live-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.live-dot { animation: live-dot 1.4s ease-in-out infinite; }
+@keyframes chart-chog { 0%, 100% { scale: 1; } 50% { scale: 1.12; } }
+.chart-chog { animation: chart-chog 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .live-dot, .chart-chog { animation: none; } }

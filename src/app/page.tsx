@@ -229,6 +229,8 @@ export default function Home() {
                 tokenId={chog.tokenId}
                 identity={identity!}
                 summary={active.stats?.summary}
+                chogImage={chog.image}
+                chogName={chog.name}
                 open={active.stats?.open ?? []}
                 history={active.stats?.history ?? []}
                 onTraded={refreshAll}

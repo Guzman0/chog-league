@@ -7,6 +7,7 @@ import { short } from "./WalletButton";
 import ChogAvatar, { useReaction } from "./ChogAvatar";
 import { ChogTitle } from "./Cosmetics";
 import { HolderBadge } from "./Support";
+import ShareCard from "./ShareCard";
 import type { Loadout } from "@/lib/shop";
 
 // What the Chog says, based on how it's trading right now.
@@ -59,6 +60,9 @@ export function ChogBar({
         <p className="mt-2 inline-block rounded-xl border-2 border-[var(--ink)] bg-[var(--text)] px-3 py-1 text-sm font-extrabold text-[var(--ink)]">
           {m.face} {m.line}
         </p>
+        {lastSettled && (summary?.openTrades ?? 0) === 0 && (
+          <ShareCard trade={lastSettled} chogName={chog.name} className="ml-2 align-middle" label={lastSettled.status === "lost" ? "📸 Share the rekt" : "📸 Share"} />
+        )}
         <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
           {crowns > 0 && (
             <span className="rounded-lg border-2 border-[var(--ink)] bg-[var(--banana)] px-2 py-0.5 text-[var(--ink)]" title="Weeks this Chog finished #1 in the league">

@@ -8,9 +8,9 @@ import sharp from "sharp";
 const ART_CID = "bafybeihau2egcccbdxymeckmmbrqytbfor5gkt3en6d5fsbueymdbq7g6e";
 const CHOGS = [1462, 42, 777]; // hand-picked, landing-page friendly art
 
-const C = { bg: "#24124f", panel: "#33206b", ink: "#120a2b", text: "#fff5e8", muted: "#c9bbf2", banana: "#ffd84d", green: "#4fe3a1", red: "#ff5e7e", pink: "#ff7ac6", sky: "#5ce1f2" };
+export const C = { bg: "#24124f", panel: "#33206b", ink: "#120a2b", text: "#fff5e8", muted: "#c9bbf2", banana: "#ffd84d", green: "#4fe3a1", red: "#ff5e7e", pink: "#ff7ac6", sky: "#5ce1f2" };
 
-async function font(file: string) {
+export async function font(file: string) {
   return fs.readFile(path.join(process.cwd(), "src/assets/fonts", file));
 }
 
@@ -27,7 +27,7 @@ async function chogPng(n: number, size: number): Promise<string | null> {
 }
 
 // A thick ink outline for text, built from shadows (the renderer has no text-stroke).
-function inkOutline(px: number, drop: number) {
+export function inkOutline(px: number, drop: number) {
   const s: string[] = [];
   for (let a = 0; a < 360; a += 30) {
     const r = (a * Math.PI) / 180;
