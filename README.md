@@ -58,7 +58,11 @@ Anyone can try it in **Practice mode** with any Chog and no wallet. Practice nev
 
 | | |
 | --- | --- |
-| 📈 **Calls** | Higher or lower on BTC, ETH, SOL or MON · 1, 2, 3 or 5 minutes · stake $1–$500 · multiplier 1x–5x · up to 5 open at once |
+| 📈 **Calls** | Higher or lower on BTC, ETH, SOL or MON · 1, 2, 3 or 5 minutes · stake $1–$500 · multiplier 1x–5x · up to 5 open at once · locked until the timer ends, to keep the odds fair |
+| 🧭 **Guided start** | A 47-second "How to play" clip on the home page, then a step-by-step guide that lights up each control and walks a first call. Replay it any time with "Show me how". |
+| 📊 **Live chart** | Your Chog rides the price, glowing green when winning and red when not. Shaded win zone, entry and target lines, a 🏁 finish-flag countdown, "winning! / needs +$X" under the chart, and a **LIVE · Prices by Coinbase** badge. |
+| 📸 **Share cards** | Every finished call makes an image of your Chog with a WIN or REKT stamp, a funny line and the result. Share, save or post on X. Built on the server from the saved trade, so it can't be faked. |
+| 📜 **History** | Every call and duel a Chog has played: hit rate, net, best win, worst loss, favourite market, filters, and each duel's opponent and score. The league history belongs to the token, so anyone can check it. |
 | ⚔️ **Duels** | Chog vs Chog. See who's online and challenge them. Quick, best of 3 or best of 5 (hidden picks, 20-second window), or Arenas of 15 min, 1 hour or 24 hours. Equal demo stakes, winner takes the pot. Practice players can duel a bot. |
 | 👑 **Weekly league** | Every Monday 00:00 UTC every Chog restarts at $1,000 demo. Highest balance wins the crown, the $CHOG prize and a place in the Hall of Champions. Daily streaks and power recharges. |
 | 🪪 **Levels** | Rookie (1.5x) → Trader (2x, 5 net wins) → Sharp (3x, 15) → Shark (4x, 30) → Legend (5x, 50) |
@@ -112,8 +116,9 @@ Trading and duels never use real money. $CHOG rewards play and is never gambled.
 | [`src/lib/payments.ts`](src/lib/payments.ts) | On-chain $CHOG payment checks |
 | [`src/lib/prices.ts`](src/lib/prices.ts) · [`settle.ts`](src/lib/settle.ts) | Live prices and settling expired calls |
 | [`src/lib/store.ts`](src/lib/store.ts) | Database (Supabase, or a local file) |
-| [`src/app/api/`](src/app/api) | Server endpoints: trade, duels, league, champions, shop, chip-in, tips, sign-in |
-| [`src/components/`](src/components) | Screens: trade panel, Chog card, duels, leaderboard, shop |
+| [`src/app/api/`](src/app/api) | Server endpoints: trade, duels, league, champions, history, share cards, shop, chip-in, tips, sign-in |
+| [`src/components/`](src/components) | Screens: trade panel and live chart, first-call guide, Chog card and history, duels, leaderboard, shop, share cards |
+| [`src/lib/result-card.tsx`](src/lib/result-card.tsx) | The share-card image for a finished call |
 | [`supabase/schema.sql`](supabase/schema.sql) | Database tables (safe to run more than once) |
 | [`scripts/make-music.ts`](scripts/make-music.ts) | Generates the original background music |
 
