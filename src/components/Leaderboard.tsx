@@ -124,26 +124,17 @@ export default function Leaderboard({
     <section className="panel">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h3 className="text-2xl">This week&apos;s league</h3>
-          <p className="text-xs font-extrabold text-[var(--muted)]">Highest demo balance at the reset wears the crown. Everyone restarts at $1,000.</p>
+          <h3 className="text-2xl">{view === "league" ? "This week\u2019s league" : "This week\u2019s practice board"}</h3>
+          <p className="text-xs font-extrabold text-[var(--muted)]">
+            {view === "league"
+              ? "Chog holders only. Highest demo balance at the reset wears the crown and wins the $CHOG prize. Everyone restarts at $1,000."
+              : "Just for fun: no crown and no prize. The $CHOG prize is only for Chog holders in the league."}
+          </p>
         </div>
         <div className="rounded-xl border-2 border-[var(--ink)] bg-[var(--panel-2)] px-3 py-1 text-right">
-          <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--muted)]">Crown decided in</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--muted)]">{view === "league" ? "Crown decided in" : "Resets in"}</p>
           <p className="display num text-xl text-[var(--banana)]" aria-live="off">{left ?? "…"}</p>
         </div>
-      </div>
-      <div className="panel-flat mb-3 flex items-center gap-3 bg-[var(--banana)] p-3 text-[var(--ink)]">
-        <span className="text-3xl" aria-hidden="true">🏆</span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[10px] font-black uppercase tracking-wide">This week&apos;s prize for #1, in real $CHOG</span>
-          <b className="display num block text-2xl">{pot ? fmtChog(pot.prize) : "…"}</b>
-          <span className="block text-xs font-extrabold">
-            {pot && (pot.sales > 0 || pot.chips > 0)
-              ? [fmtChog(pot.base), pot.prize - pot.base - pot.chips > 0 && `${fmtChog(pot.prize - pot.base - pot.chips)} from the shop`, pot.chips > 0 && `${fmtChog(pot.chips)} chipped in`].filter(Boolean).join(" + ")
-              : "Grows with every Shop purchase (70% to the prize, 30% burned) and every chip in"}
-          </span>
-          <ChipIn topChippers={pot?.topChippers} onDone={() => setPotKey((k) => k + 1)} />
-        </span>
       </div>
       <div className="mb-3 flex rounded-xl border-2 border-[var(--ink)] bg-[var(--panel-2)] p-0.5 text-sm" role="tablist" aria-label="Which board">
         {(["league", "practice"] as const).map((v) => (
@@ -162,6 +153,21 @@ export default function Leaderboard({
           </button>
         ))}
       </div>
+      {view === "league" && (
+      <div className="panel-flat mb-3 flex items-center gap-3 bg-[var(--banana)] p-3 text-[var(--ink)]">
+        <span className="text-3xl" aria-hidden="true">🏆</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-black uppercase tracking-wide">This week&apos;s prize for the league&apos;s #1 Chog holder, in real $CHOG</span>
+          <b className="display num block text-2xl">{pot ? fmtChog(pot.prize) : "…"}</b>
+          <span className="block text-xs font-extrabold">
+            {pot && (pot.sales > 0 || pot.chips > 0)
+              ? [fmtChog(pot.base), pot.prize - pot.base - pot.chips > 0 && `${fmtChog(pot.prize - pot.base - pot.chips)} from the shop`, pot.chips > 0 && `${fmtChog(pot.chips)} chipped in`].filter(Boolean).join(" + ")
+              : "Grows with every Shop purchase (70% to the prize, 30% burned) and every chip in"}
+          </span>
+          <ChipIn topChippers={pot?.topChippers} onDone={() => setPotKey((k) => k + 1)} />
+        </span>
+      </div>
+      )}
       {view === "practice" ? (
         <PracticeList board={practice} names={names} onSelect={onSelect} />
       ) : !board ? (
@@ -294,8 +300,7 @@ function PracticeList({ board, names, onSelect }: { board: PracticeBoard | null;
   return (
     <div>
       <p className="mb-2 text-xs font-extrabold text-[var(--muted)]">
-        Anyone can play Practice with any Chog, no wallet needed. Just for fun: no crown and no prize, and it never counts toward a Chog&apos;s record.
-        You show up after {board.minCalls} finished calls this week. Resets Monday 00:00 UTC.
+        Anyone can play Practice with any Chog, no wallet needed. It never counts toward a Chog&apos;s record. You show up after {board.minCalls} finished calls this week. Resets Monday 00:00 UTC.
       </p>
       {board.rows.length === 0 ? (
         <p className="panel-flat p-4 text-center text-sm text-[var(--muted)]">Nobody&apos;s on the practice board yet this week. Tap &quot;🎲 Play with a random Chog&quot; and make {board.minCalls} calls to be first.</p>
