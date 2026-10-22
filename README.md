@@ -65,6 +65,7 @@ Anyone can try it in **Practice mode** with any Chog and no wallet. Practice nev
 | 📜 **History** | Every call and duel a Chog has played: hit rate, net, best win, worst loss, favourite market, filters, and each duel's opponent and score. The league history belongs to the token, so anyone can check it. |
 | ⚔️ **Duels** | Chog vs Chog. See who's online and challenge them. Quick, best of 3 or best of 5 (hidden picks, 20-second window), or Arenas of 15 min, 1 hour or 24 hours. Equal demo stakes, winner takes the pot. Practice players can duel a bot. |
 | 👑 **Weekly league** | Every Monday 00:00 UTC every Chog restarts at $1,000 demo. Highest balance wins the crown, the $CHOG prize and a place in the Hall of Champions. Daily streaks and power recharges. |
+| 🎲 **Practice board** | Anyone playing Practice (no wallet) gets a weekly board too: "Player ab12" with the Chog they used, ranked by practice balance after 3 finished calls. Just for fun, no prize, never touches a Chog's record. |
 | 🪪 **Levels** | Rookie (1.5x) → Trader (2x, 5 net wins) → Sharp (3x, 15) → Shark (4x, 30) → Legend (5x, 50) |
 | ✨ **$CHOG shop** | Titles (250), profile frames (500) and victory animations (1,000 $CHOG). Looks only, saved to the Chog. Free try-on. |
 | 🏆 **Prize pot** | 2,000 $CHOG base + 70% of the week's shop sales + everything chipped in. The other 30% of sales is burned. Payouts and burns are linked on-chain ("Paid ✓", "burned ✓"). |

@@ -11,6 +11,8 @@ import { fmtChog, txUrl } from "@/lib/shop";
 import { short } from "./WalletButton";
 
 type Board = { resetsAt: number; rows: ChogSummary[] };
+type PracticeRow = { tokenId: string; player: string; isMe: boolean; weekBalance: number; wins: number; losses: number };
+type PracticeBoard = { rows: PracticeRow[]; players: number; minCalls: number; me: (PracticeRow & { rank: number }) | null };
 export type Champion = {
   weekStart: number; tokenId: string; balance: number; wins: number; losses: number; players: number;
   prize: number; burn: number; chips: number; paidTx?: string; burnTx?: string; owner?: string;
@@ -57,7 +59,31 @@ export default function Leaderboard({
   onSelect, refreshKey, onLeader, champions,
 }: { onSelect: (c: ChogData) => void; refreshKey: number; onLeader?: (tokenId: string | null) => void; champions: Champion[] | null }) {
   const [board, setBoard] = useState<Board | null>(null);
+  const [practice, setPractice] = useState<PracticeBoard | null>(null);
+  const [view, setView] = useState<"league" | "practice">("league");
+  const picked = useRef(false); // once someone picks a view, don't switch it for them
   const [names, setNames] = useState<Record<string, ChogData>>({});
+
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch("/api/leaderboard/practice", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => alive && Array.isArray(d.rows) && setPractice(d))
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 20000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [refreshKey]);
+
+  // While nobody has played the league this week, open on the practice board.
+  useEffect(() => {
+    if (picked.current || !board || !practice) return;
+    if (board.rows.length === 0 && practice.rows.length > 0) setView("practice");
+  }, [board, practice]);
 
   useEffect(() => {
     let alive = true;
@@ -81,12 +107,12 @@ export default function Leaderboard({
 
   const requested = useRef(new Set<string>());
   useEffect(() => {
-    [...(board?.rows.map((r) => r.tokenId) ?? []), ...(champions?.map((c) => c.tokenId) ?? [])].forEach((id) => {
+    [...(board?.rows.map((r) => r.tokenId) ?? []), ...(practice?.rows.map((r) => r.tokenId) ?? []), ...(champions?.map((c) => c.tokenId) ?? [])].forEach((id) => {
       if (requested.current.has(id)) return;
       requested.current.add(id);
       fetchChog(id).then((c) => setNames((n) => ({ ...n, [id]: c }))).catch(() => {});
     });
-  }, [board, champions]);
+  }, [board, practice, champions]);
 
   const left = useCountdown(board?.resetsAt ?? null);
   const reigning = champions?.[0];
@@ -119,7 +145,26 @@ export default function Leaderboard({
           <ChipIn topChippers={pot?.topChippers} onDone={() => setPotKey((k) => k + 1)} />
         </span>
       </div>
-      {!board ? (
+      <div className="mb-3 flex rounded-xl border-2 border-[var(--ink)] bg-[var(--panel-2)] p-0.5 text-sm" role="tablist" aria-label="Which board">
+        {(["league", "practice"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={view === v}
+            onClick={() => {
+              picked.current = true;
+              setView(v);
+            }}
+            className={`flex-1 rounded-lg px-3 py-1.5 font-extrabold ${view === v ? "bg-[var(--banana)] text-[var(--ink)]" : ""}`}
+          >
+            {v === "league" ? `👑 League${board ? ` (${board.rows.length})` : ""}` : `🎲 Practice${practice ? ` (${practice.players})` : ""}`}
+          </button>
+        ))}
+      </div>
+      {view === "practice" ? (
+        <PracticeList board={practice} names={names} onSelect={onSelect} />
+      ) : !board ? (
         <p className="text-sm text-[var(--muted)]">Loading…</p>
       ) : board.rows.length === 0 ? (
         <p className="panel-flat p-4 text-center text-sm text-[var(--muted)]">Nobody has played the league this week yet. The first Chog to make a call takes the crown 👑</p>
@@ -216,5 +261,55 @@ function PrizeLine({ c, compact = false }: { c: Champion; compact?: boolean }) {
       {c.paidTx ? link(c.paidTx, "Paid ✓") : <span className="text-[var(--muted)]">Payment pending{c.owner ? ` to ${short(c.owner)}` : ""}</span>}
       {c.burn > 0 && (c.burnTx ? link(c.burnTx, `${fmtChog(c.burn)} burned ✓`) : <span className="text-[var(--muted)]">{fmtChog(c.burn)} to burn</span>)}
     </p>
+  );
+}
+
+// The practice board: anyone, any Chog, no wallet. Just for fun.
+function PracticeList({ board, names, onSelect }: { board: PracticeBoard | null; names: Record<string, ChogData>; onSelect: (c: ChogData) => void }) {
+  if (!board) return <p className="text-sm text-[var(--muted)]">Loading…</p>;
+  const row = (r: PracticeRow, rank: number) => {
+    const c = names[r.tokenId];
+    return (
+      <li key={`${r.player}-${r.tokenId}`}>
+        <button onClick={() => c && onSelect(c)} className={`panel-flat flex w-full items-center gap-3 p-2 text-left text-sm ${r.isMe ? "outline outline-2 outline-[var(--banana)]" : ""}`}>
+          <span className="display w-7 text-center text-xl">{rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank}</span>
+          {c?.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={c.image} alt="" className="block h-10 w-10 rounded-lg border-2 border-[var(--ink)] object-cover" />
+          ) : (
+            <span className="block h-10 w-10 rounded-lg border-2 border-[var(--ink)] bg-[var(--line)]" />
+          )}
+          <span className="min-w-0 flex-1">
+            <b>{r.player}</b>
+            {r.isMe && <span className="ml-1.5 rounded-md border-2 border-[var(--ink)] bg-[var(--banana)] px-1 text-[11px] font-black text-[var(--ink)]">YOU</span>}
+            <span className="block text-xs text-[var(--muted)]">
+              with {c?.name ?? `Token ${r.tokenId}`} · {r.wins} won, {r.losses} lost
+            </span>
+          </span>
+          <span className={`display num text-xl ${r.weekBalance >= 1000 ? "text-[var(--green)]" : "text-[var(--red)]"}`}>${r.weekBalance.toLocaleString()}</span>
+        </button>
+      </li>
+    );
+  };
+  return (
+    <div>
+      <p className="mb-2 text-xs font-extrabold text-[var(--muted)]">
+        Anyone can play Practice with any Chog, no wallet needed. Just for fun: no crown and no prize, and it never counts toward a Chog&apos;s record.
+        You show up after {board.minCalls} finished calls this week. Resets Monday 00:00 UTC.
+      </p>
+      {board.rows.length === 0 ? (
+        <p className="panel-flat p-4 text-center text-sm text-[var(--muted)]">Nobody&apos;s on the practice board yet this week. Tap &quot;🎲 Play with a random Chog&quot; and make {board.minCalls} calls to be first.</p>
+      ) : (
+        <ol className="space-y-2">
+          {board.rows.map((r, i) => row(r, i + 1))}
+          {board.me && (
+            <>
+              <li className="text-center text-xs text-[var(--muted)]" aria-hidden="true">⋯</li>
+              {row(board.me, board.me.rank)}
+            </>
+          )}
+        </ol>
+      )}
+    </div>
   );
 }

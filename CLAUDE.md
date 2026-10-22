@@ -40,6 +40,8 @@ Judging: Novelty 30%, Fun 20%, Retention 20%, Clarity 15%, Execution 15%, $CHOG 
 - Local testing without network: `CHOG_FAKE_PRICES=1` makes up prices (ignored on Vercel).
 - `src/middleware.ts` sets the practice cookie on first page load (prevents duplicate practice IDs).
 - Practice mode: anyone, any Chog, no wallet; never counts toward records or the league.
+  Practice board: `/api/leaderboard/practice` (per practice ID + Chog, min 3 finished calls, shown as "Player <hash>"),
+  League | Practice switch in Leaderboard.tsx (opens on Practice while the league is empty).
 - Duels (`src/lib/duels.ts`): Quick/Bo3/Bo5 rounds (hidden picks, 20s window, $100-scored picks)
   and Arena 15m/1h/24h ($1,000 bankroll). Equal stakes from weekly/practice balance, winner takes all,
   max stake = half balance, max 3 league duels/week per pair, bot duels practice-only.
