@@ -11,8 +11,8 @@ import { fmtChog, txUrl } from "@/lib/shop";
 import { short } from "./WalletButton";
 
 type Board = { resetsAt: number; rows: ChogSummary[] };
-type PracticeRow = { tokenId: string; player: string; tag: string; named: boolean; isMe: boolean; weekBalance: number; wins: number; losses: number };
-type PracticeBoard = { rows: PracticeRow[]; players: number; minCalls: number; me: (PracticeRow & { rank: number }) | null; you: { tag: string; name: string | null } | null };
+type PracticeRow = { tokenId: string; chogs: number; player: string; tag: string; named: boolean; isMe: boolean; profit: number; calls: number; wins: number; losses: number };
+type PracticeBoard = { rows: PracticeRow[]; players: number; minCalls: number; me: (PracticeRow & { rank: number }) | null; you: { tag: string; name: string | null; calls: number; open: number } | null };
 export type Champion = {
   weekStart: number; tokenId: string; balance: number; wins: number; losses: number; players: number;
   prize: number; burn: number; chips: number; paidTx?: string; burnTx?: string; owner?: string;
@@ -276,7 +276,7 @@ function PracticeList({ board, names, onSelect, onRenamed }: { board: PracticeBo
   const row = (r: PracticeRow, rank: number) => {
     const c = names[r.tokenId];
     return (
-      <li key={`${r.player}-${r.tokenId}`}>
+      <li key={`${r.tag}-${rank}`}>
         <button onClick={() => c && onSelect(c)} className={`panel-flat flex w-full items-center gap-3 p-2 text-left text-sm ${r.isMe ? "outline outline-2 outline-[var(--banana)]" : ""}`}>
           <span className="display w-7 text-center text-xl">{rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank}</span>
           {c?.image ? (
@@ -290,10 +290,10 @@ function PracticeList({ board, names, onSelect, onRenamed }: { board: PracticeBo
             {r.named && <span className="ml-1 text-[11px] font-bold text-[var(--muted)]">#{r.tag}</span>}
             {r.isMe && <span className="ml-1.5 rounded-md border-2 border-[var(--ink)] bg-[var(--banana)] px-1 text-[11px] font-black text-[var(--ink)]">YOU</span>}
             <span className="block text-xs text-[var(--muted)]">
-              with {c?.name ?? `Token ${r.tokenId}`} · {r.wins} won, {r.losses} lost
+              with {c?.name ?? `Token ${r.tokenId}`}{r.chogs > 1 ? ` +${r.chogs - 1} more` : ""} · {r.calls} calls, {r.wins} won, {r.losses} lost
             </span>
           </span>
-          <span className={`display num text-xl ${r.weekBalance >= 1000 ? "text-[var(--green)]" : "text-[var(--red)]"}`}>${r.weekBalance.toLocaleString()}</span>
+          <span className={`display num text-xl ${r.profit >= 0 ? "text-[var(--green)]" : "text-[var(--red)]"}`}>{r.profit >= 0 ? "+" : "-"}${Math.abs(r.profit).toLocaleString(undefined, Number.isInteger(r.profit) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </button>
       </li>
     );
@@ -301,9 +301,15 @@ function PracticeList({ board, names, onSelect, onRenamed }: { board: PracticeBo
   return (
     <div>
       <p className="mb-2 text-xs font-extrabold text-[var(--muted)]">
-        Anyone can play Practice with any Chog, no wallet needed. It never counts toward a Chog&apos;s record. You show up after {board.minCalls} finished calls this week. Resets Monday 00:00 UTC.
+        Anyone can play Practice with any Chog, no wallet needed. Ranked by practice profit this week, across every Chog you play. It never counts toward a Chog&apos;s record. You show up after {board.minCalls} finished calls this week (any Chog). Resets Monday 00:00 UTC.
       </p>
       {board.you && <NameEditor you={board.you} onSaved={onRenamed} />}
+      {board.you && board.you.calls < board.minCalls && (
+        <p className="mb-2 rounded-lg border-2 border-[var(--ink)] bg-[var(--panel-2)] px-2.5 py-1.5 text-xs font-extrabold">
+          You have {board.you.calls} of {board.minCalls} finished calls this week
+          {board.you.open > 0 ? ` (${board.you.open} still running)` : ""}. {board.minCalls - board.you.calls} more and you&apos;re on the board.
+        </p>
+      )}
       {board.rows.length === 0 ? (
         <p className="panel-flat p-4 text-center text-sm text-[var(--muted)]">Nobody&apos;s on the practice board yet this week. Tap &quot;🎲 Play with a random Chog&quot; and make {board.minCalls} calls to be first.</p>
       ) : (
@@ -322,7 +328,7 @@ function PracticeList({ board, names, onSelect, onRenamed }: { board: PracticeBo
 }
 
 // "Your name on the board": pick a nickname (stays with this browser).
-function NameEditor({ you, onSaved }: { you: { tag: string; name: string | null }; onSaved: () => void }) {
+function NameEditor({ you, onSaved }: { you: { tag: string; name: string | null; calls: number; open: number }; onSaved: () => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(you.name ?? "");
   const [busy, setBusy] = useState(false);
