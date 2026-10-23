@@ -6,7 +6,7 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { summarize, weekStart } from "@/lib/game";
 import { settleDue } from "@/lib/settle";
-import { listDuels, listTrades } from "@/lib/store";
+import { getPracticeNames, listDuels, listTrades } from "@/lib/store";
 import { duelBalanceDelta } from "@/lib/duels";
 import { getPracticeId } from "@/lib/practice";
 
@@ -32,17 +32,18 @@ export async function GET() {
     groups.set(`${t.practiceId}|${t.tokenId}`, { practiceId: t.practiceId, tokenId: t.tokenId });
   }
 
+  const nicknames = await getPracticeNames([...new Set([...[...groups.values()].map((g) => g.practiceId), ...(me ? [me] : [])])]);
   const rows = [...groups.values()]
     .map(({ practiceId, tokenId }) => {
       const s = summarize(tokenId, week, now, practiceId, duelBalanceDelta(tokenId, practiceDuels, now, practiceId));
       const finished = s.wins + s.losses;
-      return { row: { tokenId, player: `Player ${tag(practiceId)}`, isMe: practiceId === me, weekBalance: s.weekBalance, wins: s.wins, losses: s.losses }, finished };
+      return { row: { tokenId, player: nicknames[practiceId] ?? `Player ${tag(practiceId)}`, tag: tag(practiceId), named: !!nicknames[practiceId], isMe: practiceId === me, weekBalance: s.weekBalance, wins: s.wins, losses: s.losses }, finished };
     })
     .filter((r) => r.finished >= MIN_CALLS)
     .map((r) => r.row)
     .sort((a, b) => b.weekBalance - a.weekBalance || b.wins - a.wins);
 
-  const players = new Set(rows.map((r) => r.player)).size;
+  const players = new Set(rows.map((r) => r.tag)).size;
   const myBest = rows.findIndex((r) => r.isMe);
   return NextResponse.json(
     {
@@ -51,6 +52,7 @@ export async function GET() {
       minCalls: MIN_CALLS,
       players,
       rows: rows.slice(0, 20),
+      you: me ? { tag: tag(me), name: nicknames[me] ?? null } : null,
       me: myBest >= 20 ? { rank: myBest + 1, ...rows[myBest] } : null,
     },
     { headers: { "cache-control": "no-store" } },

@@ -528,3 +528,37 @@ export async function paymentUsed(txHash: string): Promise<boolean> {
   ]);
   return p.length + c.length + t.length > 0;
 }
+
+// ================================================================ Practice nicknames
+// A practice player (no wallet) can pick a nickname for the practice board.
+// Keyed by their practice ID; never shown anywhere else.
+type FileNames = { practiceNames?: Record<string, string> };
+
+export async function getPracticeNames(ids: string[]): Promise<Record<string, string>> {
+  if (!ids.length) return {};
+  if (usingSupabase) {
+    const { data, error } = await supabase().from("practice_names").select("practice_id,name").in("practice_id", ids);
+    if (error) return {}; // before the database update: everyone is "Player ab12"
+    return Object.fromEntries((data as { practice_id: string; name: string }[]).map((r) => [r.practice_id, r.name]));
+  }
+  const db = (await readFile()) as FileDB & FileNames;
+  return Object.fromEntries(ids.filter((id) => db.practiceNames?.[id]).map((id) => [id, db.practiceNames![id]]));
+}
+
+export async function setPracticeName(id: string, name: string | null): Promise<void> {
+  if (usingSupabase) {
+    const q = name
+      ? supabase().from("practice_names").upsert({ practice_id: id, name, updated_at: Date.now() })
+      : supabase().from("practice_names").delete().eq("practice_id", id);
+    const { error } = await q;
+    if (error && /relation|does not exist|schema cache/i.test(error.message)) throw new Error("Nicknames need a one-time database update (see supabase/schema.sql).");
+    if (error) throw new Error(`Database error: ${error.message}`);
+    return;
+  }
+  await withFile((db) => {
+    const d = db as FileDB & FileNames;
+    d.practiceNames ??= {};
+    if (name) d.practiceNames[id] = name;
+    else delete d.practiceNames[id];
+  });
+}

@@ -145,3 +145,12 @@ alter table public.tips enable row level security;
 -- Cash out: a call closed early gets status 'cashed'. Safe to run again.
 alter table public.trades drop constraint if exists trades_status_check;
 alter table public.trades add constraint trades_status_check check (status in ('open', 'won', 'lost', 'push', 'cashed'));
+
+-- ---------------------------------------------------------------------------
+-- Practice board nicknames (players without a wallet). Safe to run again.
+create table if not exists public.practice_names (
+  practice_id text primary key,
+  name text not null,
+  updated_at bigint not null default 0
+);
+alter table public.practice_names enable row level security;

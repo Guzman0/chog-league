@@ -11,8 +11,8 @@ import { fmtChog, txUrl } from "@/lib/shop";
 import { short } from "./WalletButton";
 
 type Board = { resetsAt: number; rows: ChogSummary[] };
-type PracticeRow = { tokenId: string; player: string; isMe: boolean; weekBalance: number; wins: number; losses: number };
-type PracticeBoard = { rows: PracticeRow[]; players: number; minCalls: number; me: (PracticeRow & { rank: number }) | null };
+type PracticeRow = { tokenId: string; player: string; tag: string; named: boolean; isMe: boolean; weekBalance: number; wins: number; losses: number };
+type PracticeBoard = { rows: PracticeRow[]; players: number; minCalls: number; me: (PracticeRow & { rank: number }) | null; you: { tag: string; name: string | null } | null };
 export type Champion = {
   weekStart: number; tokenId: string; balance: number; wins: number; losses: number; players: number;
   prize: number; burn: number; chips: number; paidTx?: string; burnTx?: string; owner?: string;
@@ -169,7 +169,7 @@ export default function Leaderboard({
       </div>
       )}
       {view === "practice" ? (
-        <PracticeList board={practice} names={names} onSelect={onSelect} />
+        <PracticeList board={practice} names={names} onSelect={onSelect} onRenamed={() => fetch("/api/leaderboard/practice", { cache: "no-store" }).then((r) => r.json()).then((d) => Array.isArray(d.rows) && setPractice(d)).catch(() => {})} />
       ) : !board ? (
         <p className="text-sm text-[var(--muted)]">Loading…</p>
       ) : board.rows.length === 0 ? (
@@ -271,7 +271,7 @@ function PrizeLine({ c, compact = false }: { c: Champion; compact?: boolean }) {
 }
 
 // The practice board: anyone, any Chog, no wallet. Just for fun.
-function PracticeList({ board, names, onSelect }: { board: PracticeBoard | null; names: Record<string, ChogData>; onSelect: (c: ChogData) => void }) {
+function PracticeList({ board, names, onSelect, onRenamed }: { board: PracticeBoard | null; names: Record<string, ChogData>; onSelect: (c: ChogData) => void; onRenamed: () => void }) {
   if (!board) return <p className="text-sm text-[var(--muted)]">Loading…</p>;
   const row = (r: PracticeRow, rank: number) => {
     const c = names[r.tokenId];
@@ -287,6 +287,7 @@ function PracticeList({ board, names, onSelect }: { board: PracticeBoard | null;
           )}
           <span className="min-w-0 flex-1">
             <b>{r.player}</b>
+            {r.named && <span className="ml-1 text-[11px] font-bold text-[var(--muted)]">#{r.tag}</span>}
             {r.isMe && <span className="ml-1.5 rounded-md border-2 border-[var(--ink)] bg-[var(--banana)] px-1 text-[11px] font-black text-[var(--ink)]">YOU</span>}
             <span className="block text-xs text-[var(--muted)]">
               with {c?.name ?? `Token ${r.tokenId}`} · {r.wins} won, {r.losses} lost
@@ -302,6 +303,7 @@ function PracticeList({ board, names, onSelect }: { board: PracticeBoard | null;
       <p className="mb-2 text-xs font-extrabold text-[var(--muted)]">
         Anyone can play Practice with any Chog, no wallet needed. It never counts toward a Chog&apos;s record. You show up after {board.minCalls} finished calls this week. Resets Monday 00:00 UTC.
       </p>
+      {board.you && <NameEditor you={board.you} onSaved={onRenamed} />}
       {board.rows.length === 0 ? (
         <p className="panel-flat p-4 text-center text-sm text-[var(--muted)]">Nobody&apos;s on the practice board yet this week. Tap &quot;🎲 Play with a random Chog&quot; and make {board.minCalls} calls to be first.</p>
       ) : (
@@ -316,5 +318,66 @@ function PracticeList({ board, names, onSelect }: { board: PracticeBoard | null;
         </ol>
       )}
     </div>
+  );
+}
+
+// "Your name on the board": pick a nickname (stays with this browser).
+function NameEditor({ you, onSaved }: { you: { tag: string; name: string | null }; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(you.name ?? "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function save(name: string) {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch("/api/practice/name", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      setEditing(false);
+      onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't save");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <p className="mb-2 flex flex-wrap items-center gap-2 text-xs font-extrabold">
+        <span className="text-[var(--muted)]">You appear as</span>
+        <b>{you.name ?? `Player ${you.tag}`}</b>
+        {you.name && <span className="text-[var(--muted)]">#{you.tag}</span>}
+        <button type="button" onClick={() => { setValue(you.name ?? ""); setEditing(true); }} className="btn btn-ghost px-2 py-0.5 text-xs">
+          ✏️ {you.name ? "Change name" : "Set your name"}
+        </button>
+      </p>
+    );
+  }
+  return (
+    <form
+      className="mb-2 flex flex-wrap items-center gap-2 text-xs"
+      onSubmit={(e) => {
+        e.preventDefault();
+        save(value);
+      }}
+    >
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        maxLength={16}
+        placeholder="Your nickname"
+        aria-label="Your nickname for the practice board"
+        className="w-40 rounded-lg border-2 border-[var(--ink)] bg-[var(--panel-2)] px-2 py-1 text-sm font-bold"
+      />
+      <button type="submit" disabled={busy || value.trim().length < 3} className="btn btn-banana px-2.5 py-1 text-xs">{busy ? "…" : "Save"}</button>
+      {you.name && <button type="button" disabled={busy} onClick={() => save("")} className="btn btn-ghost px-2.5 py-1 text-xs">Remove</button>}
+      <button type="button" disabled={busy} onClick={() => setEditing(false)} className="text-xs font-bold text-[var(--muted)] underline">Cancel</button>
+      {err && <span className="w-full font-extrabold text-[var(--red)]">{err}</span>}
+      <span className="w-full text-[var(--muted)]">3 to 16 characters. It stays with this browser. Your #{you.tag} tag keeps you unique.</span>
+    </form>
   );
 }
