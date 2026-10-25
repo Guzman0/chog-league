@@ -37,7 +37,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       traits: Array.isArray(traits) ? traits : [],
     };
     if (debug) data.debug = { tokenURI: uri.slice(0, 500), tried, metaKeys: meta ? Object.keys(meta) : null, meta };
-    return NextResponse.json(data);
+    // A Chog's name, picture and traits never change; only its owner does, and every
+    // trade re-checks the owner on Monad anyway. So let Vercel's edge cache serve it
+    // instantly: fresh for 2 minutes, then served at once while it refreshes in the background.
+    return NextResponse.json(data, {
+      headers: { "cache-control": debug || !meta ? "no-store" : "public, max-age=0, s-maxage=120, stale-while-revalidate=2592000" },
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const notFound = /nonexistent|invalid token|ERC721/i.test(msg);

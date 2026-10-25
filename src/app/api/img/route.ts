@@ -18,17 +18,27 @@ export async function GET(req: Request) {
   const urls = candidates(u);
   if (!urls) return new Response("Unsupported image link", { status: 400 });
 
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-      const type = res.headers.get("content-type") || "";
-      if (!res.ok || !(type.startsWith("image/") || type.startsWith("video/") || type === "application/octet-stream")) continue;
-      return new Response(res.body, {
-        headers: { "content-type": type, "cache-control": "public, max-age=86400, immutable" },
-      });
-    } catch {
-      // try the next gateway
-    }
+  // Ask every gateway at once and stream back the first image that arrives.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const winner = await Promise.any(
+      urls.map(async (url) => {
+        const res = await fetch(url, { signal: ctrl.signal });
+        const type = res.headers.get("content-type") || "";
+        if (!res.ok || !(type.startsWith("image/") || type.startsWith("video/") || type === "application/octet-stream")) throw new Error("not an image");
+        return { res, type };
+      }),
+    );
+    clearTimeout(timer);
+    const body = new Uint8Array(await winner.res.arrayBuffer());
+    ctrl.abort(); // stop the slower gateways
+    return new Response(body, {
+      // Chog art never changes: cache it in the browser and at Vercel's edge.
+      headers: { "content-type": winner.type, "cache-control": "public, max-age=86400, s-maxage=31536000, immutable" },
+    });
+  } catch {
+    clearTimeout(timer);
   }
   return new Response("Image unavailable", { status: 502 });
 }

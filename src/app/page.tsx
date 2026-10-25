@@ -156,11 +156,35 @@ export default function Home() {
   const identity = chog ? identityFor(chog.tokenId, chog.traits) : null;
   const duelMaxMult = shown?.mode === "league" ? league.stats?.summary.level.maxMultiplier ?? 1.5 : 5;
 
-  async function load(id: string, openTab: Tab = "trade") {
+  // "Play with a random Chog": pick the next random Chog in advance and start
+  // loading it while the visitor reads the home page, so the tap feels instant.
+  const nextRandom = useRef<{ id: string; chog: Promise<ChogData> } | null>(null);
+  useEffect(() => {
+    if (chog || nextRandom.current) return;
+    const id = String(1 + Math.floor(Math.random() * CHOG_SUPPLY));
+    const pending = fetchChog(id);
+    pending.catch(() => {
+      if (nextRandom.current?.id === id) nextRandom.current = null;
+    });
+    pending
+      .then((c) => {
+        if (c.image) new Image().src = c.image; // warm the picture too
+      })
+      .catch(() => {});
+    nextRandom.current = { id, chog: pending };
+  }, [chog]);
+  function playRandom() {
+    const next = nextRandom.current;
+    nextRandom.current = null;
+    if (next) load(next.id, "trade", next.chog);
+    else load(String(1 + Math.floor(Math.random() * CHOG_SUPPLY)));
+  }
+
+  async function load(id: string, openTab: Tab = "trade", pending?: Promise<ChogData>) {
     setLoading(true);
     setErr(null);
     try {
-      setChog(await fetchChog(id));
+      setChog(await (pending ?? fetchChog(id)).catch(() => fetchChog(id)));
       setPicker(false);
       setTab(openTab);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -217,7 +241,7 @@ export default function Home() {
       </div>
       {!chog ? (
         <div className="space-y-12" data-landing>
-          <Landing onPractice={() => load(String(1 + Math.floor(Math.random() * CHOG_SUPPLY)))} loading={loading} />
+          <Landing onPractice={playRandom} loading={loading} />
           {err && <p className="text-center text-sm font-extrabold text-[var(--red)]">{err}</p>}
           <div className="mx-auto max-w-2xl">
             <Leaderboard onSelect={select} refreshKey={boardKey} champions={champions} />

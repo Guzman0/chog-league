@@ -32,20 +32,31 @@ export async function fetchMeta(uri: string, tried: string[]): Promise<Meta | nu
   if (uri.startsWith("data:application/json")) {
     return JSON.parse(decodeURIComponent(uri.split(",").slice(1).join(",")));
   }
-  for (const url of candidateUrls(uri)) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(8000), cache: "no-store" });
-      tried.push(`${res.status} ${url}`);
-      if (!res.ok) continue;
-      const text = await res.text();
-      try {
-        return JSON.parse(text);
-      } catch {
-        tried.push(`not JSON: ${text.slice(0, 80)}`);
-      }
-    } catch (e) {
-      tried.push(`failed ${url}: ${e instanceof Error ? e.message : e}`);
-    }
+  // Ask every gateway at once and take the first good answer (one slow gateway
+  // used to cost up to 8 seconds before the next was even tried).
+  const urls = candidateUrls(uri);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 9000);
+  try {
+    return await Promise.any(
+      urls.map(async (url) => {
+        const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+        tried.push(`${res.status} ${url}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        try {
+          return JSON.parse(text) as Meta;
+        } catch {
+          tried.push(`not JSON: ${text.slice(0, 80)}`);
+          throw new Error("not JSON");
+        }
+      }),
+    );
+  } catch {
+    tried.push("no gateway answered");
+  } finally {
+    clearTimeout(timer);
+    ctrl.abort(); // stop the slower gateways
   }
   return null;
 }
