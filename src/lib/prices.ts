@@ -44,6 +44,12 @@ async function candles(market: Market, startSec: number, endSec: number): Promis
 
 // The closing price of the 1-minute candle that ends exactly at `expiryMs`.
 // Returns null if the exchange hasn't published that candle yet (try again shortly).
+//
+// Quiet markets (MON especially) can go minutes or hours without a trade, and
+// Coinbase publishes no candle for a minute with no trades. Then the price at
+// expiry is simply the last traded price before it, so we use the latest
+// earlier close, looking back up to 5 hours, and finally the last trade itself
+// if it happened before expiry.
 const settleCache = new Map<string, number>();
 export async function getSettlementPrice(market: Market, expiryMs: number): Promise<number | null> {
   if (FAKE) return Date.now() >= expiryMs + 2000 ? fakePrice(market, expiryMs) : null;
@@ -51,15 +57,33 @@ export async function getSettlementPrice(market: Market, expiryMs: number): Prom
   const cached = settleCache.get(key);
   if (cached !== undefined) return cached;
   const bucket = Math.floor(expiryMs / 1000) - 60; // candle covering the last minute before expiry
+  const nowSec = Math.floor(Date.now() / 1000);
   // End the range at "now" (not at the bucket): Coinbase's CDN caches identical
   // URLs for 5 minutes, so a fixed URL keeps returning a list from before the
   // candle existed. A fresh end time makes every check a new request.
-  const list = await candles(market, bucket - 300, Math.max(bucket + 60, Math.floor(Date.now() / 1000)));
+  const list = await candles(market, bucket - 300, Math.max(bucket + 60, nowSec));
   const exact = list.find((c) => c[0] === bucket);
-  // A minute with zero trades has no candle; fall back to the latest earlier close.
-  const earlier = list.filter((c) => c[0] < bucket).sort((a, b) => b[0] - a[0])[0];
-  const price = exact ? exact[4] : Date.now() - expiryMs > 120000 && earlier ? earlier[4] : null;
-  if (price !== null) settleCache.set(key, price);
+  if (exact) return remember(key, exact[4]);
+
+  // No candle for that minute. Settle once the exchange has clearly moved on:
+  // a later candle exists, or 75 seconds have passed since expiry.
+  const movedOn = list.some((c) => c[0] > bucket) || Date.now() - expiryMs > 75_000;
+  if (!movedOn) return null;
+  let earlier = list.filter((c) => c[0] < bucket).sort((a, b) => b[0] - a[0])[0];
+  if (!earlier) {
+    const older = await candles(market, bucket - 5 * 3600, bucket);
+    earlier = older.filter((c) => c[0] < bucket).sort((a, b) => b[0] - a[0])[0];
+  }
+  if (earlier) return remember(key, earlier[4]);
+  // No trades for hours: the last trade before expiry is the price at expiry.
+  const t = await getJson<{ price: string; time: string }>(`/products/${PRODUCT[market]}/ticker`);
+  const price = Number(t.price);
+  if (Number.isFinite(price) && price > 0 && Date.parse(t.time) <= expiryMs) return remember(key, price);
+  return null;
+}
+
+function remember(key: string, price: number) {
+  settleCache.set(key, price);
   return price;
 }
 
