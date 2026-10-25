@@ -247,3 +247,8 @@ h1, h2, h3, .display {
 @keyframes chart-chog { 0%, 100% { scale: 1; } 50% { scale: 1.12; } }
 .chart-chog { animation: chart-chog 1.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .live-dot, .chart-chog { animation: none; } }
+
+/* Refreshing on a Chog: hide the home page and show a loader until the Chog is back. */
+.restore-loader { display: none; }
+html.restoring .restore-loader { display: flex; }
+html.restoring [data-landing] { display: none; }

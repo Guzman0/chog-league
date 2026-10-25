@@ -16,8 +16,12 @@ export const viewport: Viewport = { themeColor: "#24124F" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          // Runs before anything is drawn: a refresh on /?chog=… shows a loader, not the home page.
+          dangerouslySetInnerHTML={{ __html: `try{if(/[?&]chog=\\d/.test(location.search))document.documentElement.classList.add("restoring")}catch(e){}` }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}

@@ -59,14 +59,21 @@ export default function Home() {
   // Remember the open Chog, tab and mode in the web address, so a refresh
   // (or a shared link) comes straight back here: /?chog=1462&tab=shop
   const restored = useRef(false);
+  const fromHistory = useRef(false); // true while following browser Back/Forward
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const id = q.get("chog");
     const t = q.get("tab") as Tab | null;
     if (q.get("mode") === "practice") wantMode.current = "practice";
     if (id && /^\d+$/.test(id) && Number(id) >= 1 && Number(id) <= CHOG_SUPPLY) {
-      load(id, t && ["trade", "duel", "league", "shop"].includes(t) ? t : "trade").finally(() => (restored.current = true));
-    } else restored.current = true;
+      load(id, t && ["trade", "duel", "league", "shop"].includes(t) ? t : "trade").finally(() => {
+        restored.current = true;
+        document.documentElement.classList.remove("restoring");
+      });
+    } else {
+      restored.current = true;
+      document.documentElement.classList.remove("restoring");
+    }
   }, []);
   useEffect(() => {
     if (!restored.current) return;
@@ -78,8 +85,37 @@ export default function Home() {
       if (isMine && mode === "practice") q.set("mode", "practice");
     }
     const url = `${window.location.pathname}${q.toString() ? `?${q}` : ""}${window.location.hash}`;
-    if (url !== `${window.location.pathname}${window.location.search}${window.location.hash}`) window.history.replaceState(window.history.state, "", url);
+    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const opening = !!chog && !new URLSearchParams(window.location.search).get("chog");
+    if (url !== here) {
+      // Opening a Chog from the home page adds a step to browser history, so Back returns home.
+      if (opening && !fromHistory.current) window.history.pushState(null, "", url);
+      else window.history.replaceState(window.history.state, "", url);
+    }
+    fromHistory.current = false;
   }, [chog, tab, mode, isMine]);
+
+  // Browser Back/Forward: follow the address (home, or a Chog).
+  useEffect(() => {
+    const onPop = () => {
+      const id = new URLSearchParams(window.location.search).get("chog");
+      fromHistory.current = true;
+      if (!id) goHome(false);
+      else if (/^\d+$/.test(id)) load(id);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  // Back to the home page (the logo, the "Home" button, or browser Back).
+  function goHome(scroll = true) {
+    setChog(null);
+    setShownDuel(null);
+    setHistoryOpen(false);
+    setPicker(false);
+    setTab("trade");
+    if (scroll) window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   // Connecting a wallet with no Chog picked yet opens the Chog picker.
   useEffect(() => {
@@ -165,7 +201,7 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-5xl px-4 pb-24 pt-5 sm:pt-7">
       <header className="mb-6 flex items-center justify-between gap-2">
-        <button type="button" onClick={() => setChog(null)} className="wordmark whitespace-nowrap text-[1.2rem] min-[380px]:text-[1.4rem] sm:text-4xl" aria-label="Chog League home">
+        <button type="button" onClick={() => goHome()} className="wordmark whitespace-nowrap text-[1.2rem] min-[380px]:text-[1.4rem] sm:text-4xl" aria-label="Chog League home">
           Chog League
         </button>
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -175,8 +211,12 @@ export default function Home() {
         </div>
       </header>
 
+      <div className="restore-loader min-h-[50vh] flex-col items-center justify-center gap-3 text-[var(--muted)]" aria-live="polite">
+        <span className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--panel-2)] border-t-[var(--banana)]" aria-hidden="true" />
+        <p className="text-sm font-extrabold">Loading your Chog…</p>
+      </div>
       {!chog ? (
-        <div className="space-y-12">
+        <div className="space-y-12" data-landing>
           <Landing onPractice={() => load(String(1 + Math.floor(Math.random() * CHOG_SUPPLY)))} loading={loading} />
           {err && <p className="text-center text-sm font-extrabold text-[var(--red)]">{err}</p>}
           <div className="mx-auto max-w-2xl">
@@ -185,6 +225,9 @@ export default function Home() {
         </div>
       ) : (
         <div className="space-y-5">
+          <button type="button" onClick={() => goHome()} className="-mb-2 text-sm font-extrabold text-[var(--muted)] hover:text-[var(--text)]">
+            ← Home
+          </button>
           <ChogBar
             chog={chog}
             identity={identity!}
